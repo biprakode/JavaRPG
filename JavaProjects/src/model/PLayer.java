@@ -10,7 +10,7 @@ public class Player {
     private static int maxInventory;
     private Item[] inventory;
     private Item equippedItem;
-    private int currentRoom;
+    private Room currentRoom;
     private int experiencePoints;
     private int level;
 
@@ -20,7 +20,6 @@ public class Player {
         Player.maxHealth = 100;
         Player.maxInventory = 5;
         this.inventory = new Item[maxInventory];
-        this.currentRoom = -1;
         this.experiencePoints = -1;
         this.level = -1;
     }
@@ -34,6 +33,15 @@ public class Player {
         if (this.health <= 0) {
             throw new PlayerAlreadyDeadException("RIP || Player " + getName() + "is already dead");
         }
+    }
+
+    public boolean isAlive() {
+        try {
+            verifyAlive();
+        } catch (PlayerAlreadyDeadException e) {
+            return false;
+        }
+        return true;
     }
 
     public void takeDamage(int dam) {
@@ -84,11 +92,10 @@ public class Player {
             return;
         }
         item.use(this);
-        if(item.getItemtype() == ItemType.POTION) {
+        if(item.getItemtype() == ItemType.POTION || item.getItemtype() == ItemType.TREASURE) {
             setInventory(null, index);
             System.out.println(item.getName() + " was consumed.");
         }
-
     }
 
     public String getName() {
@@ -121,11 +128,11 @@ public class Player {
         return maxInventory;
     }
 
-    public int getCurrentRoom() {
+    public Room getCurrentRoom() {
         return currentRoom;
     }
 
-    public void setCurrentRoom(int currentRoom) {
+    public void setCurrentRoom(Room currentRoom) {
         this.currentRoom = currentRoom;
     }
 
