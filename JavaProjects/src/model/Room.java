@@ -26,6 +26,12 @@ public class Room {
         this.lockedExits = new HashSet<>();
     }
 
+    public void reset() {
+        this.isVisited = false;
+        this.roomMap = new HashMap<>();
+        this.lockedExits = new HashSet<>();
+    }
+
     void addExit(Directions d, Room r, boolean isLocked) {
         if(roomMap.get(d) != null) {
             throw new DuplicateRoomException("Direction " + d + " is already connected to " + roomMap.get(d).getName());

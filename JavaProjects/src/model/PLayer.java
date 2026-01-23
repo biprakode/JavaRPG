@@ -9,14 +9,14 @@ public class Player {
     private int health;
     private static int maxInventory;
     private Item[] inventory;
-    private Item equippedItem;
+    //private Item equippedItem;
     private Room currentRoom;
     private int experiencePoints;
     private int level;
 
     Player(String n) {
         this.name = n;
-        this.equippedItem = null;
+        //this.equippedItem = null;
         Player.maxHealth = 100;
         Player.maxInventory = 5;
         this.inventory = new Item[maxInventory];
@@ -27,6 +27,18 @@ public class Player {
     @Override
     public String toString() {
         return "PlayerStats :- ";
+    }
+
+    public void reset(Room start) {
+        health = maxHealth;
+        currentRoom = start;
+        for(Item item: inventory) {
+            item = null;
+        }
+        System.out.println("Player " + name + "reset with empty pockets!");
+        experiencePoints = 0;
+        level = 1;
+        //equippedItem = null;
     }
 
     private void verifyAlive() {

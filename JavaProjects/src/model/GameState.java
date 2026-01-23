@@ -118,7 +118,7 @@ public class GameState {
         this.checkpoint = spawnRoom;
         this.livesAtCheckpoint = maxLives;
 
-        if(player!=null) {player.reset()};
+        if(player!=null) {player.reset(spawnRoom);}
         for(Room room : roomMap.values()) {
             room.reset();
         }

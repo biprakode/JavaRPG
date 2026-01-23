@@ -1,7 +1,7 @@
 package model;
 
 public enum GameDifficulty {
-    EASY, MEDIUM, HARD, ULTRA
+    EASY, MEDIUM, HARD, ULTRA;
     public String getDescription() {
         return switch (this) {
             case EASY -> "Forgiving - 4 lives, weaker enemies";
