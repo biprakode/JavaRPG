@@ -14,7 +14,7 @@ public class Player {
     private int experiencePoints;
     private int level;
 
-    Player(String n) {
+    public Player(String n) {
         this.name = n;
         //this.equippedItem = null;
         Player.maxHealth = 100;

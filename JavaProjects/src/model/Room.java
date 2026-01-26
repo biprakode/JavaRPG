@@ -16,7 +16,7 @@ public class Room {
     private Item item;
     private boolean isVisited;
 
-    Room(int id, String n, String d, RoomType rt) {
+    public Room(int id, String n, String d, RoomType rt) {
         this.id = id;
         this.name = n;
         this.desc = d;

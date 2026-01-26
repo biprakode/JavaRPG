@@ -25,7 +25,7 @@ public class GameState {
     private Room checkpoint;
     private int livesAtCheckpoint;
 
-    GameState(GameDifficulty difficulty) {
+    public GameState(GameDifficulty difficulty) {
         maxLives = switch (difficulty) {
             case ULTRA -> 1;
             case HARD -> 2;
@@ -43,7 +43,7 @@ public class GameState {
         //map service handle map generation
     }
 
-    public void intialize(Player p, Room start, Map<Integer,Room> rooms) {
+    public void initialize(Player p, Room start, Map<Integer,Room> rooms) {
         player = p;
         roomMap = rooms;
         this.spawnRoom = start;
