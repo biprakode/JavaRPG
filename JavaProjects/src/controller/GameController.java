@@ -4,6 +4,7 @@ import model.GameDifficulty;
 import model.GameState;
 import model.Player;
 import model.Room;
+import model.Challenge;
 
 import java.util.Map;
 import java.util.Scanner;
@@ -50,5 +51,4 @@ public class GameController {
     public void processCommand(String input) {
 
     }
-
 }

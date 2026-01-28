@@ -7,6 +7,7 @@ public class Command {
     private String target;
     private String originalInput;
     private List<String> tokens;
+    private String suggestion;
 
     public Command(Action type, String target) {
         this.action = type;
@@ -52,5 +53,13 @@ public class Command {
     @Override
     public String toString() {
         return String.format("Command[type=%s, target='%s']", action, target);
+    }
+
+    public void setSuggestion(String s) {
+        suggestion = s;
+    }
+
+    public String getSuggestion() {
+        return suggestion;
     }
 }

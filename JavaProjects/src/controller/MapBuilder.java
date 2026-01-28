@@ -38,12 +38,7 @@ public class MapBuilder {
     }
 
     private Directions getOpposite(Directions dir) {
-        return switch (dir) {
-            case NORTH -> Directions.SOUTH;
-            case SOUTH -> Directions.NORTH;
-            case EAST -> Directions.WEST;
-            case WEST -> Directions.EAST;
-        };
+        return dir.getOpposite();
     }
 
     public Room getSpawnRoom() {

@@ -13,6 +13,7 @@ public class Player {
     private Room currentRoom;
     private int experiencePoints;
     private int level;
+    private Item equippedItem;
 
     public Player(String n) {
         this.name = n;
@@ -106,6 +107,7 @@ public class Player {
         item.use(this);
         if(item.getItemtype() == ItemType.POTION || item.getItemtype() == ItemType.TREASURE) {
             setInventory(null, index);
+            equippedItem = null;
             System.out.println(item.getName() + " was consumed.");
         }
     }
