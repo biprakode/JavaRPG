@@ -5,6 +5,7 @@ import model.error.MonsterAlreadyDeadException;
 public class Monster {
     private String name;
     private String desc;
+    private String monsterType;
     private String attack;
     private int maxHealth;
     private int health;
@@ -12,7 +13,7 @@ public class Monster {
     private boolean isDefeated;
     private Item itemToDrop;
 
-    Monster(String name, String desc, String attack, int maxHealth, MonsterDifficulty difficulty) {
+    Monster(String name, String desc, String attack, int maxHealth, MonsterDifficulty difficulty , monsterType type) {
         this.name = name;
         this.desc = desc;
         this.attack = attack;
@@ -24,6 +25,7 @@ public class Monster {
         this.health = this.maxHealth;
         this.difficulty = difficulty;
         this.isDefeated = false;
+        this.monsterType = type.getType();
     }
 
     public void takeDamage(int d) {
@@ -126,5 +128,13 @@ public class Monster {
 
     public void setDefeated(boolean defeated) {
         isDefeated = defeated;
+    }
+
+    public String getMonsterType() {
+        return monsterType;
+    }
+
+    public void setMonsterType(String monsterType) {
+        this.monsterType = monsterType;
     }
 }

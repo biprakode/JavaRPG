@@ -8,5 +8,5 @@ public class ChallengeController {
     private int maxAttempts;
     private LocalTime timestart;
     private int maxTime;
-    private String
+    private String something;
 }

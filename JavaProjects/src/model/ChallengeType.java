@@ -8,6 +8,17 @@ public enum ChallengeType {
     PUZZLE,
     MORAL_DILEMMA;
 
+    public String getChallengeType() {
+        return switch (this) {
+            case RIDDLE -> "Riddle";
+            case COMBAT_CREATIVE -> "Creative Combat";
+            case COMBAT_STANDARD -> "Standard Combat";
+            case NEGOTIATION -> "Negotiation";
+            case PUZZLE -> "Puzzle";
+            case MORAL_DILEMMA -> "Moral Dilemma";
+        };
+    }
+
     public boolean requiresLLM() {
         return switch (this) {
             case RIDDLE , COMBAT_CREATIVE , NEGOTIATION , PUZZLE , MORAL_DILEMMA -> true;

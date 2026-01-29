@@ -3,12 +3,15 @@ import model.error.InventoryFullException;
 import model.error.PlayerAlreadyDeadException;
 import model.error.RIPException;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Player {
     private String name;
     private static int maxHealth;
     private int health;
     private static int maxInventory;
-    private Item[] inventory;
+    private List<Item> inventory;
     //private Item equippedItem;
     private Room currentRoom;
     private int experiencePoints;
@@ -20,7 +23,7 @@ public class Player {
         //this.equippedItem = null;
         Player.maxHealth = 100;
         Player.maxInventory = 5;
-        this.inventory = new Item[maxInventory];
+        this.inventory = new ArrayList<>(maxInventory);
         this.experiencePoints = -1;
         this.level = -1;
     }
@@ -87,9 +90,9 @@ public class Player {
             throw new IllegalArgumentException("Cannot add a null item to inventory.");
         }
         verifyAlive();
-        for (int i = 0; i < inventory.length; i++) {
-            if (inventory[i] == null) {
-                inventory[i] = item;
+        for (int i = 0; i < inventory.size(); i++) {
+            if (inventory.get(i) == null) {
+                inventory.set(i, item);
                 System.out.println("Picked up: " + item.getName() + " (Slot " + i + ")");
                 return; // Exit method once item is added
             }
@@ -128,14 +131,18 @@ public class Player {
         if(i < 0 || i >= Player.getMaxInventory()) {
             throw new IllegalArgumentException("Item index out of bounds");
         }
-        return inventory[i];
+        return inventory.get(i);
+    }
+
+    public List<Item> getInventory() {
+        return inventory;
     }
 
     public void setInventory(Item item , int i) {
         if(i < 0 || i >= Player.getMaxInventory()) {
             throw new IllegalArgumentException("Item index out of bounds");
         }
-        inventory[i] = item;
+        inventory.set(i, item);
     }
 
     public static int getMaxInventory() {

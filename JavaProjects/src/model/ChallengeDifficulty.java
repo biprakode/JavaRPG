@@ -3,6 +3,15 @@ package model;
 public enum ChallengeDifficulty {
     EASY, MEDIUM, HARD, ULTRA;
 
+    public String getDifficulty() {
+        return switch (this) {
+            case EASY -> "Easy";
+            case MEDIUM -> "Medium";
+            case HARD -> "Hard";
+            case ULTRA -> "Ultra";
+        };
+    }
+
     double getrewardXP() {
         return (double) switch (this) {
             case EASY -> 1.5;
