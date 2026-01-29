@@ -12,7 +12,7 @@ public enum ChallengeState {
     public boolean canAcceptInput() {
         return switch (this) {
             case HINT_OFFERED,ACTIVE -> true;
-            case GENERATING,NONE,GENERATING,COMPLETED,RESOLVED -> false;
+            case GENERATING,NONE,COMPLETED,RESOLVED -> false;
             default -> false;
         };
     }
