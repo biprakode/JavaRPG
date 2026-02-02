@@ -26,6 +26,7 @@ public class ChallengeContext {
 
     public ChallengeContext() {
         playerInventory = new ArrayList<>();
+        recentChallengeTypes = new ArrayList<>();
     }
 
     public ChallengeContext withPlayer(Player player) {

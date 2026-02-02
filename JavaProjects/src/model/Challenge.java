@@ -40,6 +40,7 @@ public class Challenge {
         id = uuid.toString();
         timeLimit = type.getBaseTimeout();
         playerResponses = new ArrayList<>();
+        metadata = new HashMap<>();
         baseRewardXP = (difficulty.getrewardXP()*50);
     }
 
@@ -94,7 +95,7 @@ public class Challenge {
     }
 
     public long getElapsedTime() {
-        return (System.currentTimeMillis() - startTime) / 100;
+        return (System.currentTimeMillis() - startTime) / 1000;
     }
 
     public boolean hasTimedOut() {
@@ -166,7 +167,7 @@ public class Challenge {
         return isCompleted;
     }
 
-    public boolean setChallengeState(ChallengeState st) {
+    public void setChallengeState(ChallengeState st) {
         this.state = st;
     }
 
@@ -192,5 +193,21 @@ public class Challenge {
 
     public String getPrompt() {
         return prompt;
+    }
+
+    public int getHintsUsed() {
+        return hintsUsed;
+    }
+
+    public ChallengeDifficulty getDifficulty() {
+        return difficulty;
+    }
+
+    public boolean getWasSuccesful() {
+        return wasSuccessful;
+    }
+
+    public int getTimeLimit() {
+        return timeLimit;
     }
 }

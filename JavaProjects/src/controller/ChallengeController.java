@@ -5,10 +5,7 @@ import controller.error.ChallengeNotActive;
 import model.*;
 
 import java.time.LocalTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Timer;
+import java.util.*;
 
 public class ChallengeController {
     private LLMService llmService;
@@ -36,7 +33,7 @@ public class ChallengeController {
     }
 
     public void initiateChallenge(Room room, ChallengeType type) {
-        if(activeChallenge.isChallengeCompleted()) {
+        if(activeChallenge != null && activeChallenge.isChallengeCompleted()) {
             throw new ChallengeAlreadyComplete("Cannot initiate already completed challenge");
         }
         if(type == null) {
@@ -70,14 +67,19 @@ public class ChallengeController {
             return;
         }
         int cost = calculateHintCost(level);
+
+        String hint = generateHint(level);
+        view.displayHint(hint);
+        activeChallenge.incrementHints();
+
         double deduct = switch (gameState.getDifficulty()) {
-            case GameDifficulty.EASY -> 0.05;
-            case GameDifficulty.MEDIUM -> 0.08;
-            case GameDifficulty.HARD -> 0.12;
+            case EASY -> 0.05;
+            case MEDIUM -> 0.08;
+            case HARD -> 0.12;
             case ULTRA -> 0.18;
         };
         double xp = activeChallenge.getbaseXP();
-        activeChallenge.setbaseXP(xp - xp*deduct);
+        activeChallenge.setbaseXP(xp - xp * deduct);
 
     }
 
@@ -87,7 +89,7 @@ public class ChallengeController {
                 .withPlayer(gameState.getPlayer())
                 .withRoom(room)
                 .withChallengeType(type)
-                .withDifficulty(mapGameToChallengeeDifficulty(gameState.getDifficulty()));
+                .withDifficulty(mapGameToChallengeDifficulty(gameState.getDifficulty()));
         if (room.hasMonster()) {
             context.withMonster(room.getMonster());
         }
@@ -147,13 +149,13 @@ public class ChallengeController {
 
     private void applyConsequences(ChallengeResult result) {
         Player player = gameState.getPlayer();
-        if(result.getXPAwarded()) {
-            player.addXP(result.getXPAwarded());
+        if(result.getXpAwarded() > 0) {
+            player.addXP(result.getXpAwarded());
         }
         if (result.getDamageTaken() > 0) {
             player.takeDamage(result.getDamageTaken());
         }
-        if(result.getItemsAwarded()) {
+        if(result.getItemsAwarded() != null && !result.getItemsAwarded().isEmpty()) {
             for(Item item : result.getItemsAwarded()) {
                 player.addInventory(item);
             }
@@ -190,6 +192,8 @@ public class ChallengeController {
         return evaluateWithLLM(response);
     }
 
+    //Eval Route
+
     private ChallengeResult evaluateWithLLM(String response) {
         String expectedPattern = activeChallenge.getMetaData("expectedPattern");
         String challengePrompt = activeChallenge.getPrompt();
@@ -211,5 +215,203 @@ public class ChallengeController {
                 .withItems(determineItemRewards(activeChallenge));
     }
 
+    private ChallengeResult evaluateWithRules(String response) {
+        String expectedPattern = activeChallenge.getMetaData("expectedPattern");
 
+        boolean success = challengeEvaluator.evaluateWithRules(response, expectedPattern).isSuccess();
+        int effectiveness = success ? 80 : 0; // Binary for rule-based
+
+        String feedback = success ? "Correct!" : "That's not right. Try again.";
+
+        return new ChallengeResult(success, feedback)
+                .withEffectiveness(effectiveness)
+                .withXP(success ? calculateXPReward(activeChallenge, effectiveness) : 0);
+    }
+
+    // Reward Calculation
+    private int calculateXPReward(Challenge challenge , int effectiveness) {
+        double baseXP = challenge.getbaseXP();
+        double effectivenessMultiplier = effectiveness / 100.0;
+        int hintsUsed = challenge.getHintsUsed();
+        double hintPenalty = 1.0 - (hintsUsed * 0.15); // 15 % penalty per hint
+        return (int) (baseXP * effectivenessMultiplier * Math.max(hintPenalty , 0.4));
+    }
+
+    private int calculateDamage(Challenge challenge , int effectiveness) { // dealt to monster or taken on failure
+        int baseDamage = switch (challenge.getDifficulty()) {
+            case EASY -> 10;
+            case MEDIUM -> 20;
+            case HARD -> 35;
+            case ULTRA -> 50;
+        };
+        return (int) (baseDamage * (effectiveness / 100.0));
+    }
+
+    private List<Item> determineItemRewards(Challenge challenge) {
+        List<Item> rewards = new ArrayList<>();
+        if(!challenge.getWasSuccesful()) {
+            return rewards; // return empty list on failure
+        }
+        double dropchance = switch (challenge.getDifficulty()) {
+            case EASY -> 0.1;
+            case MEDIUM -> 0.2;
+            case HARD -> 0.35;
+            case ULTRA -> 0.5;
+        };
+        if(Math.random() < dropchance) {
+            Item reward = generateRewardItem(challenge.getType());
+            if (reward != null) {
+                rewards.add(reward);
+            }
+        }
+        return rewards;
+    }
+
+    // Hint System
+    private String generateHint(int level) {
+        String hintKey = "hint"+level;
+        String storedHint = activeChallenge.getMetaData(hintKey);
+        if(storedHint != null && !storedHint.isEmpty()) {
+            return storedHint;
+        }
+        //generate hint through LLM
+        return llmService.generateHint(activeChallenge.getPrompt(), level);
+    }
+
+    private int calculateHintCost(int level) {
+        int baseCost = switch (level) {
+            case 1 -> 5;   // Subtle hint
+            case 2 -> 15;  // Direct hint
+            case 3 -> 30;  // Obvious hint
+            default -> 10;
+        };
+
+        double multiplier = switch (gameState.getDifficulty()) {
+            case EASY -> 0.5;
+            case MEDIUM -> 1.0;
+            case HARD -> 1.5;
+            case ULTRA -> 2.0;
+        };
+
+        return (int) (baseCost * multiplier);
+    }
+
+    // TimeOut Handlings
+    private void startChallengeTimer(int seconds) {
+        cancelTimer(); // cancel existing timer
+        challengeTimer = new Timer();
+        challengeTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                handleTimeout();
+            }
+        } , seconds * 1000L);
+    }
+
+    private void handleTimeout() {
+        if (activeChallenge == null) {
+            return;
+        }
+        view.displayMessage("Time's up!");
+
+        ChallengeResult timeoutResult = new ChallengeResult(false, "Challenge timed out")
+                .withDamage(0, calculateDamage(activeChallenge, 0));
+
+        activeChallenge.complete(false, "Timed out");
+        applyConsequences(timeoutResult);
+        completeChallenge();
+    }
+
+    private void cancelTimer() {
+        if (challengeTimer != null) {
+            challengeTimer.cancel();
+            challengeTimer = null;
+        }
+    }
+
+    public boolean hasActiveChallenge() {
+        return activeChallenge != null &&
+                activeChallenge.getChallengeState() == ChallengeState.ACTIVE;
+    }
+
+    public Challenge getActiveChallenge() {
+        return activeChallenge;
+    }
+
+    public ChallengeState getCurrentState() {
+        return activeChallenge != null ?
+                activeChallenge.getChallengeState() :
+                ChallengeState.NONE;
+    }
+
+    private void recordCompletedChallenge(Challenge challenge) {
+        if (completedChallenges == null) {
+            completedChallenges = new ArrayList<>();
+        }
+        completedChallenges.add(challenge);
+
+        // Track recent types for diversity
+        if (recentTypes == null) {
+            recentTypes = new LinkedList<>();
+        }
+        recentTypes.add(challenge.getType());
+
+        // Keep only last 10 types
+        while (recentTypes.size() > 10) {
+            recentTypes.poll();
+        }
+    }
+
+    private List<ChallengeType> getRecentChallengeTypes(int count) {
+        if (recentTypes == null || recentTypes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return recentTypes.stream()
+                .limit(count)
+                .toList();
+    }
+
+    public ChallengeSnapshot saveState() {
+        if (activeChallenge == null) {
+            return null;
+        }
+        return activeChallenge.createSnapshot();
+    }
+
+    public void loadState(ChallengeSnapshot snapshot) {
+        if (snapshot == null) {
+            activeChallenge = null;
+            return;
+        }
+
+        activeChallenge = Challenge.fromSnapshot(snapshot);
+
+        if (activeChallenge.getChallengeState() == ChallengeState.ACTIVE) {
+            long elapsed = activeChallenge.getElapsedTime();
+            int remaining = activeChallenge.getTimeLimit() - (int) elapsed;
+            if (remaining > 0) {
+                startChallengeTimer(remaining);
+            } else {
+                handleTimeout();
+            }
+        }
+    }
+
+    // Helper method to map GameDifficulty to ChallengeDifficulty
+    private ChallengeDifficulty mapGameToChallengeDifficulty(GameDifficulty gameDifficulty) {
+        return switch (gameDifficulty) {
+            case EASY -> ChallengeDifficulty.EASY;
+            case MEDIUM -> ChallengeDifficulty.MEDIUM;
+            case HARD -> ChallengeDifficulty.HARD;
+            case ULTRA -> ChallengeDifficulty.ULTRA;
+        };
+    }
+
+    // Generate reward item based on challenge type
+    private Item generateRewardItem(ChallengeType type) {
+        // TODO: Implement proper item generation, possibly via LLM
+        // For now, return null - rewards can be added later
+        return null;
+    }
 }

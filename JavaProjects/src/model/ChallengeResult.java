@@ -54,4 +54,27 @@ public class ChallengeResult {
         return this;
     }
 
+    public boolean isSuccess() {
+        return isSucess;
+    }
+
+    public int getXpAwarded() {
+        return xpAwarded;
+    }
+
+    public int getDamageTaken() {
+        return damageTaken;
+    }
+
+    public int getDamageDealt() {
+        return damageDealt;
+    }
+
+    public List<Item> getItemsAwarded() {
+        return itemsAwarded;
+    }
+
+    public String getFeedback() {
+        return feedback;
+    }
 }
