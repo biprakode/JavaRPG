@@ -1,8 +1,4 @@
-package controller;
-
-import model.ChallengeDifficulty;
-import model.ChallengeState;
-import model.ChallengeType;
+package model;
 
 import java.io.Serializable;
 import java.util.List;

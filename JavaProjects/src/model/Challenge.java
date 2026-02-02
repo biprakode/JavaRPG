@@ -1,8 +1,5 @@
 package model;
 
-import controller.ChallengeSnapshot;
-
-import java.io.Serializable;
 import java.util.*;
 
 public class Challenge {
@@ -163,5 +160,37 @@ public class Challenge {
         challenge.endTime = snapshot.endTime();
 
         return challenge;
+    }
+
+    public boolean isChallengeCompleted() {
+        return isCompleted;
+    }
+
+    public boolean setChallengeState(ChallengeState st) {
+        this.state = st;
+    }
+
+    public ChallengeState getChallengeState() {
+        return state;
+    }
+
+    public void incrementHints() {
+        hintsUsed++;
+    }
+
+    public void setbaseXP(double xp) {
+        baseRewardXP = xp;
+    }
+
+    public double getbaseXP() {
+        return baseRewardXP;
+    }
+
+    public ChallengeType getType() {
+        return type;
+    }
+
+    public String getPrompt() {
+        return prompt;
     }
 }

@@ -4,7 +4,7 @@ import java.util.List;
 
 public class ChallengeResult {
     private boolean isSucess;
-    private int effectivenessRating;
+    private int effectivenessRating; // LLM creativity rating 0-100
     private String feedback;
 
     private int xpAwarded;
@@ -19,8 +19,39 @@ public class ChallengeResult {
     private long evaluationTime;
 
     public ChallengeResult(boolean isSuccess, String feedback) {
-
+        this.isSucess = isSuccess;
+        this.feedback = feedback;
     }
 
+    public ChallengeResult withXP(int xp) {
+        this.xpAwarded = xp;
+        return this;
+    }
+
+    public ChallengeResult withDamage(int dealt, int taken) {
+        this.damageDealt = dealt;
+        this.damageTaken = taken;
+        return this;
+    }
+
+    public ChallengeResult withItems(List<Item> items) {
+        this.itemsAwarded = items;
+        return this;
+    }
+
+    public ChallengeResult withEffectiveness(int rating) {
+        this.effectivenessRating = rating;
+        return this;
+    }
+
+    public int getEffectivenessRating() {
+        return effectivenessRating;
+    }
+
+    public ChallengeResult withStoryImpact(boolean unlocks, String progression) {
+        this.unlocksPath = unlocks;
+        this.storyProgression = progression;
+        return this;
+    }
 
 }

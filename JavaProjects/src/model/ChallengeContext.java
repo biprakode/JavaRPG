@@ -113,4 +113,8 @@ public class ChallengeContext {
         return prompt.toString();
     }
 
+    public ChallengeType getChallengeType() {
+        return challengeType;
+    }
+
 }

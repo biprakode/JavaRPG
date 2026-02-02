@@ -12,7 +12,6 @@ public class Player {
     private int health;
     private static int maxInventory;
     private List<Item> inventory;
-    //private Item equippedItem;
     private Room currentRoom;
     private int experiencePoints;
     private int level;
@@ -145,6 +144,14 @@ public class Player {
         inventory.set(i, item);
     }
 
+    public void addInventory(Item item) {
+        if(inventory.size() == maxInventory) {
+            throw new InventoryFullException("Inventory is full, cant add more");
+        }else {
+            inventory.add(item);
+        }
+    }
+
     public static int getMaxInventory() {
         return maxInventory;
     }
@@ -187,5 +194,9 @@ public class Player {
 
     public void setEquippedItem(Item equippedItem) {
         this.equippedItem = equippedItem;
+    }
+
+    public void addXP(int xp) {
+        setExperiencePoints(xp + this.getExperiencePoints());
     }
 }
