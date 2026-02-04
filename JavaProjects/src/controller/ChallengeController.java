@@ -69,7 +69,7 @@ public class ChallengeController {
         int cost = calculateHintCost(level);
 
         String hint = generateHint(level);
-        view.displayHint(hint);
+        view.displayHint(hint , cost);
         activeChallenge.incrementHints();
 
         double deduct = switch (gameState.getDifficulty()) {
