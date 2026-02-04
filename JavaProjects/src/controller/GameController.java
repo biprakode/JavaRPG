@@ -5,6 +5,7 @@ import model.GameState;
 import model.Player;
 import model.Room;
 import model.Challenge;
+import view.ConsoleViewImpl;
 
 import java.util.Map;
 import java.util.Scanner;
@@ -14,6 +15,11 @@ public class GameController {
     protected Player player;
     protected MapBuilder mapbuilder;
     protected CommandParser commandparser;
+    protected ConsoleView view;
+
+    public GameController() {
+        this.view = new ConsoleViewImpl();
+    }
 
     public void startGame(GameDifficulty difficulty , String player_name , int totalrooms) {
         GameState gamestate = new GameState(difficulty);
@@ -29,11 +35,11 @@ public class GameController {
 
     public void gameLoop(GameState gamestate) {
         Scanner scanner = new Scanner(System.in);
-        System.out.println("--- THE ADVENTURE BEGINS ---");
+        view.displayMessage("--- THE ADVENTURE BEGINS ---");
         gamestate.getCurrentRoom().describe();
 
         while(!gamestate.isGameOver()) {
-            System.out.print("\nWhat will you do? > ");
+            view.displayMessage("\nWhat will you do? > ");
             String input = scanner.nextLine();
 
             if (input.equalsIgnoreCase("quit")) {
@@ -41,11 +47,11 @@ public class GameController {
             }
             processCommand(input);
             if(!gamestate.getPlayer().isAlive() && !gamestate.hasLivesRemaining()) {
-                System.out.println("[GAMEOVER] You have perished in the depths.");
+                view.displayMessage("[GAMEOVER] You have perished in the depths.");
                 gamestate.setGameOver(true);
             }
         }
-        System.out.println("Thanks for playing!");
+        view.displayMessage("Thanks for playing!");
     }
 
     public void processCommand(String input) {

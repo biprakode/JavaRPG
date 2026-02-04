@@ -138,7 +138,7 @@ public class ChallengeController {
             completeChallenge();
         } else {
             activeChallenge.decrementAttempts();
-            view.displayResult(result);
+            view.displayResult(activeChallenge , result);
             if (!activeChallenge.hasAttemptsRemaining()) {
                 result = new ChallengeResult(false, "No attempts remaining").withDamage(0, calculateDamage(activeChallenge, 0));
                 applyConsequences(result);
@@ -160,7 +160,7 @@ public class ChallengeController {
                 player.addInventory(item);
             }
         }
-        view.displayResult(result);
+        view.displayResult(activeChallenge , result);
     }
 
     private void completeChallenge() {

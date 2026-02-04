@@ -39,4 +39,6 @@ public enum ChallengeType {
             case COMBAT_CREATIVE , COMBAT_STANDARD,NEGOTIATION -> 2;
         };
     }
+
+
 }

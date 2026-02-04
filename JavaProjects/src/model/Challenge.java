@@ -210,4 +210,8 @@ public class Challenge {
     public int getTimeLimit() {
         return timeLimit;
     }
+
+    public int getAttemptsRemaining() {
+        return attemptsRemaining;
+    }
 }
