@@ -4,7 +4,6 @@ import controller.error.ChallengeAlreadyComplete;
 import controller.error.ChallengeNotActive;
 import model.*;
 
-import java.time.LocalTime;
 import java.util.*;
 
 public class ChallengeController {
@@ -21,7 +20,6 @@ public class ChallengeController {
     private Queue<ChallengeType> recentTypes;
 
     private boolean allowHints;
-    private boolean useLLMEvaluation;
 
     public ChallengeController(LLMService llm, ConsoleView v, GameState st) {
         llmService = llm;
@@ -33,6 +31,10 @@ public class ChallengeController {
     }
 
     public void initiateChallenge(Room room, ChallengeType type) {
+        if (!llmService.isAvailable()) {
+            view.displayError("LLM server is offline. Go touch some grass.");
+            return;
+        }
         if(activeChallenge != null && activeChallenge.isChallengeCompleted()) {
             throw new ChallengeAlreadyComplete("Cannot initiate already completed challenge");
         }
@@ -45,6 +47,10 @@ public class ChallengeController {
         }
         currentContext = buildContext(room , type);
         generateChallenge(currentContext);
+        if (activeChallenge == null) {
+            view.displayError("LLM failed to generate a challenge. Go touch some grass.");
+            return;
+        }
         activeChallenge.setChallengeState(ChallengeState.ACTIVE);
     }
 
@@ -184,48 +190,24 @@ public class ChallengeController {
     }
 
     private ChallengeResult determineEvaluationMethod(String response) {
-        ChallengeType type = activeChallenge.getType();
-
-        if (!type.requiresLLM() || !useLLMEvaluation) {
-            return evaluateWithRules(response);
-        }
         return evaluateWithLLM(response);
     }
-
-    //Eval Route
 
     private ChallengeResult evaluateWithLLM(String response) {
         String expectedPattern = activeChallenge.getMetaData("expectedPattern");
         String challengePrompt = activeChallenge.getPrompt();
-        String evalPrompt = String.format("""
-        Challenge: %s
-        Expected answer pattern: %s
-        Player response: %s
-        
-        Evaluate if the response is correct. Consider creative interpretations.
-        Return JSON: {"success": true/false, "effectiveness": 0-100, "feedback": "..."}
-        """, challengePrompt, expectedPattern, response);
 
-        String llmEval = llmService.evaluateResponse(response, expectedPattern, evalPrompt);
+        String llmEval = llmService.evaluateResponse(response, expectedPattern, challengePrompt);
+        if (llmEval == null) {
+            view.displayError("LLM evaluation failed. Challenge cannot be scored.");
+            return new ChallengeResult(false, "LLM offline — challenge evaluation unavailable");
+        }
         ChallengeResult result = challengeEvaluator.parseEvaluation(llmEval);
 
         int effectiveness = result.getEffectivenessRating();
         return result.withXP(calculateXPReward(activeChallenge, effectiveness))
                 .withDamage(calculateDamage(activeChallenge, effectiveness), 0)
                 .withItems(determineItemRewards(activeChallenge));
-    }
-
-    private ChallengeResult evaluateWithRules(String response) {
-        String expectedPattern = activeChallenge.getMetaData("expectedPattern");
-
-        boolean success = challengeEvaluator.evaluateWithRules(response, expectedPattern).isSuccess();
-        int effectiveness = success ? 80 : 0; // Binary for rule-based
-
-        String feedback = success ? "Correct!" : "That's not right. Try again.";
-
-        return new ChallengeResult(success, feedback)
-                .withEffectiveness(effectiveness)
-                .withXP(success ? calculateXPReward(activeChallenge, effectiveness) : 0);
     }
 
     // Reward Calculation
@@ -275,7 +257,8 @@ public class ChallengeController {
             return storedHint;
         }
         //generate hint through LLM
-        return llmService.generateHint(activeChallenge.getPrompt(), level);
+        String expectedAnswer = activeChallenge.getMetaData("expectedPattern");
+        return llmService.generateHint(activeChallenge.getPrompt(), expectedAnswer, level);
     }
 
     private int calculateHintCost(int level) {
