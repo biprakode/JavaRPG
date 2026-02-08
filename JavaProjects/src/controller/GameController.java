@@ -1,10 +1,12 @@
 package controller;
 
+import controller.error.InvalidCommandException;
 import model.GameDifficulty;
 import model.GameState;
 import model.Player;
 import model.Room;
 import model.Challenge;
+import model.error.PlayerAlreadyDeadException;
 import view.ConsoleViewImpl;
 
 import java.util.Map;
@@ -54,7 +56,53 @@ public class GameController {
         view.displayMessage("Thanks for playing!");
     }
 
-    public void processCommand(String input) {
+    public void processCommand(String input) throws Exception {
+        Action action = this.commandparser.parse(input).getAction();
 
+        if(action.isSystemCommand()) {
+            handleSystemCommand(action , input);
+        }
+        if(!player.isAlive()) {
+            throw new PlayerAlreadyDeadException("Bruh, you're dead");
+        }
+
+        switch (action) {
+            case MOVE -> handleMove(input);
+            case ATTACK -> handleAttack(input);
+            case TAKE -> handleTake(input);
+            case USE -> handleUse(input);
+            case EXAMINE -> handleExamine(input);
+            case TALK -> handleTalk(input);
+            case INVENTORY -> handleInventory();
+            case STATS -> handleStats();
+            default -> throw new InvalidCommandException("Unknown action: " + action);
+        }
+    }
+
+    private void handleStats() {
+    }
+
+    private void handleInventory() {
+    }
+
+    private void handleTalk(String input) {
+    }
+
+    private void handleExamine(String input) {
+    }
+
+    private void handleUse(String input) {
+    }
+
+    private void handleTake(String input) {
+    }
+
+    private void handleAttack(String input) {
+    }
+
+    private void handleMove(String input) {
+    }
+
+    private void handleSystemCommand(Action action, String input) {
     }
 }

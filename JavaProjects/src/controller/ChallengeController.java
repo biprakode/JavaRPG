@@ -200,7 +200,7 @@ public class ChallengeController {
         String llmEval = llmService.evaluateResponse(response, expectedPattern, challengePrompt);
         if (llmEval == null) {
             view.displayError("LLM evaluation failed. Challenge cannot be scored.");
-            return new ChallengeResult(false, "LLM offline — challenge evaluation unavailable");
+            return new ChallengeResult(false, "LLM offline — challenge evaluation unavailable - touch grass");
         }
         ChallengeResult result = challengeEvaluator.parseEvaluation(llmEval);
 
