@@ -240,4 +240,8 @@ public class GameState {
         this.livesAtCheckpoint = livesAtCheckpoint;
     }
 
+    public int getGameScore() { return this.totalScore; }
+
+    public void incrementRoomsExplored() {this.roomsExplored++;}
+
 }

@@ -54,6 +54,8 @@ public class Room {
         return roomMap.get(d);
     }
 
+    public boolean isExitLocked(Directions d) {return lockedExits.contains(d); }
+
     public void unlockExit(Directions d) {
         if (lockedExits.remove(d)) {
             System.out.println("CLACK! The " + d + " door is now open.");
@@ -147,5 +149,13 @@ public class Room {
 
     public void setVisited(boolean visited) {
         isVisited = visited;
+    }
+
+    public boolean hasItem() { return item != null; }
+
+    public HashMap<Directions , Room> getExits() { return roomMap; }
+
+    public boolean hasExit(Directions d) {
+        return getExit(d) != null;
     }
 }

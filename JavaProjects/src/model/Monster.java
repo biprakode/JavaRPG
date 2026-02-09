@@ -6,14 +6,14 @@ public class Monster {
     private String name;
     private String desc;
     private String monsterType;
-    private String attack;
+    private int attack;
     private int maxHealth;
     private int health;
     private MonsterDifficulty difficulty;
     private boolean isDefeated;
     private Item itemToDrop;
 
-    Monster(String name, String desc, String attack, int maxHealth, MonsterDifficulty difficulty , monsterType type) {
+    Monster(String name, String desc, int attack, int maxHealth, MonsterDifficulty difficulty , monsterType type) {
         this.name = name;
         this.desc = desc;
         this.attack = attack;
@@ -51,9 +51,10 @@ public class Monster {
         return "is on the verge of death!";
     }
 
-    public void attack() {
-        if (isDefeated) return;
+    public int attack() {
+        if (isDefeated) return -1;
         System.out.println("[ACTION] The " + name + " lunges forward with " + attack + "!");
+        return attack;
     }
 
     public record MonsterDrop(Item item , int xp) {}
@@ -98,11 +99,11 @@ public class Monster {
         this.desc = desc;
     }
 
-    public String getAttack() {
+    public int getAttack() {
         return attack;
     }
 
-    public void setAttack(String attack) {
+    public void setAttack(int attack) {
         this.attack = attack;
     }
 

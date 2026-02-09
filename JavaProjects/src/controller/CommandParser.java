@@ -252,4 +252,8 @@ public class CommandParser {
             default -> "Unknown command";
         };
     }
+
+    public String getHelpText() {
+
+    }
 }
