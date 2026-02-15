@@ -2,6 +2,7 @@ package model;
 
 import model.error.DuplicateRoomException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -13,7 +14,7 @@ public class Room {
     private HashMap<Directions , Room> roomMap;
     private HashSet<Directions> lockedExits;
     private RoomType Roomtype;
-    private Item item;
+    private ArrayList<Item> items;
     private boolean isVisited;
 
     public Room(int id, String n, String d, RoomType rt) {
@@ -24,6 +25,7 @@ public class Room {
         this.isVisited = false;
         this.roomMap = new HashMap<>();
         this.lockedExits = new HashSet<>();
+        this.items = new ArrayList<>();
     }
 
     public void reset() {
@@ -79,13 +81,16 @@ public class Room {
         if (hasMonster()) {
             System.out.println("WARNING: A " + monster.getName() + " is lurking here!");
         }
-        if (item != null) {
-            System.out.println("You spot a " + item.getName() + " on the ground.");
+        if (items != null) {
+            System.out.println("You spot the following items on the ground.");
+            for (Item item : items) {
+                System.out.println(item.getName());
+            }
         }
     }
 
     void addItem(Item item) {
-        this.item = item;
+        this.items.add(item);
     }
 
     public int getId() {
@@ -135,12 +140,16 @@ public class Room {
         this.Roomtype = roomtype;
     }
 
-    public Item getItem() {
-        return item;
+    public Item getItems(int index) {
+        return items.get(index);
     }
 
-    public void setItem(Item item) {
-        this.item = item;
+    public ArrayList<Item> getItems() {
+        return items;
+    }
+
+    public void setItems(Item item) {
+        this.items.add(item);
     }
 
     public boolean isVisited() {
@@ -151,11 +160,15 @@ public class Room {
         isVisited = visited;
     }
 
-    public boolean hasItem() { return item != null; }
+    public boolean hasItem() { return items != null; }
 
     public HashMap<Directions , Room> getExits() { return roomMap; }
 
     public boolean hasExit(Directions d) {
         return getExit(d) != null;
     }
+
+    public void removeMonster() {monster = null;}
+
+    public void removeItem(Item item) { items.remove(item); }
 }

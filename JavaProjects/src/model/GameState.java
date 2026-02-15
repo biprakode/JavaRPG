@@ -101,10 +101,11 @@ public class GameState {
         totalScore += monsterValue;
     }
 
-    public void checkGameOver() {
+    public boolean checkGameOver() {
         if(player.isAlive() || livesRemaining<=0) {
             isGameOver = true;
         }
+        return isGameOver;
     }
 
     public void resetGame() {
@@ -243,5 +244,7 @@ public class GameState {
     public int getGameScore() { return this.totalScore; }
 
     public void incrementRoomsExplored() {this.roomsExplored++;}
+
+    public void incrementMonstersDefeated() {this.monstersDefeated++;}
 
 }

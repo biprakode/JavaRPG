@@ -23,8 +23,8 @@ public class Player {
         Player.maxHealth = 100;
         Player.maxInventory = 5;
         this.inventory = new ArrayList<>(maxInventory);
-        this.experiencePoints = -1;
-        this.level = -1;
+        this.experiencePoints = 0;
+        this.level = 0;
     }
 
     @Override
@@ -198,5 +198,21 @@ public class Player {
 
     public void addXP(int xp) {
         setExperiencePoints(xp + this.getExperiencePoints());
+    }
+
+    public boolean levelUp() {
+        int threshold = switch (level) {
+            case 1 -> 100;
+            case 2 -> 250;
+            case 3 -> 300;
+            case 4 -> 500;
+            default -> Integer.MAX_VALUE; // Max level reached
+        };
+
+        if (experiencePoints >= threshold) {
+            level++;
+            return true;
+        }
+        return false;
     }
 }

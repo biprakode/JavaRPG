@@ -2,9 +2,11 @@ package controller;
 
 import controller.error.InvalidCommandException;
 import model.*;
+import model.error.InventoryFullException;
 import model.error.PlayerAlreadyDeadException;
 import view.ConsoleViewImpl;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Scanner;
 
@@ -75,24 +77,6 @@ public class GameController {
         }
     }
 
-    private void handleStats() {
-
-    }
-
-    private void handleInventory() {
-    }
-
-    private void handleTalk(String input) {
-    }
-
-    private void handleExamine(String input) {
-    }
-
-    private void handleUse(String input) {
-    }
-
-    private void handleTake(String input) {
-    }
 
     private void handleAttack(String input) throws Exception{
         Room currentRoom = gameState.getCurrentRoom();
@@ -144,7 +128,46 @@ public class GameController {
     }
 
     private void handleMonsterDefeated(Monster monster) {
+        view.displayMessage("\n🎉 You defeated the " + monster.getName() + "!");
 
+        Monster.MonsterDrop reward = monster.getDefeatReward();
+        Item itemDropped = reward.item();
+        int xpAwarded = reward.xp();
+
+        view.displayMessage("[LOOT] You searched the remains of " + monster.getName() + " and found " + (itemDropped != null ? itemDropped.getName() : "nothing") + " and gained " + xpAwarded + " XP.");
+
+        gameState.incrementMonstersDefeated();
+        gameState.getCurrentRoom().removeMonster();
+
+        if(player.levelUp()) {
+            handleLevelUp();
+        }
+    }
+
+    private void handleLevelUp() {
+        view.displayMessage("\n✨ LEVEL UP! ✨");
+        view.displayMessage("You are now level " + player.getLevel());
+        view.displayMessage("Health restored to maximum!");
+        player.setHealth(100); // Full heal on level up
+    }
+
+    private void handlePlayerDeath() {
+        gameState.loseLife();
+
+        if(gameState.checkGameOver()) {
+            view.displayMessage("\n💀 GAME OVER 💀");
+            view.displayMessage("You have run out of lives.");
+            view.displayMessage("\nFinal Score: " + gameState.getGameScore());
+            System.exit(0);
+        } else {
+            view.displayMessage("\n💀 You died!");
+            view.displayMessage("Lives remaining: " + gameState.getLivesRemaining());
+            Room checkpoint = gameState.getCheckpoint();
+            gameState.setCurrentRoom(checkpoint);
+            player.reset(checkpoint);
+            view.displayMessage("\nYou respawn at the checkpoint...");
+            enterRoom(checkpoint);
+        }
     }
 
     private void handleMove(String input) {
@@ -199,7 +222,10 @@ public class GameController {
         }
 
         if (room.hasItem()) {
-            view.displayMessage("\nItem here: " + room.getItem());
+            view.displayMessage("\nItems here are: ");
+            for (Item item : room.getItems()) {
+                view.displayMessage(item.getName() + " :: " + item.getDesc());
+            }
         }
 
         if (!room.getExits().isEmpty()) {
@@ -269,5 +295,100 @@ public class GameController {
             }
         }
         return null;
+    }
+
+    private void handleTake(String input) throws Exception {
+        Room currentRoom = gameState.getCurrentRoom();
+
+        if(!currentRoom.hasItem()) {
+            view.displayMessage("There's nothing to take here.");
+            return;
+        }
+
+        String targetName = extractItemName(input);
+        if (targetName == null) {
+            view.displayMessage("Take what? Items here: " + currentRoom.getItems());
+            return;
+        }
+
+        Item item = findItemInRoom(currentRoom, targetName);
+        if (item == null) {
+            view.displayMessage("There's no '" + targetName + "' here.");
+            view.displayMessage("Items available: " + currentRoom.getItems());
+            return;
+        }
+
+        try {
+            player.addInventory(item);
+            currentRoom.removeItem(item);
+            view.displayMessage("You take the " + item.getName() + ".");
+        } catch (InventoryFullException e) {
+            view.displayMessage("Your inventory is full! (Maximum 5 items)");
+            view.displayMessage("Drop something first with 'drop <item>'");
+
+        }
+    }
+
+    private String extractItemName(String input) {
+        String cleaned = input.toLowerCase()
+                .replaceAll("take|get|pick up|grab|pick", "")
+                .replaceAll("the|a|an", "")
+                .trim();
+        return cleaned.isEmpty() ? null : cleaned;
+    }
+
+    private Item findItemInRoom(Room room, String targetName) {
+        for (Item item : room.getItems()) {
+            if (item.getName().toLowerCase().contains(targetName) ||
+                    targetName.contains(item.getName().toLowerCase())) {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    private void handleUse(String input) throws Exception {
+        String targetName = extractItemName(input.replace("use" , ""));
+        if (targetName == null) {
+            view.displayMessage("Use what? Your inventory: " + player.getInventory());
+            return;
+        }
+        ItemIndex itemindex = findItemInInventory(targetName);
+        if (itemindex == null) {
+            view.displayMessage("You don't have '" + targetName + "'.");
+            view.displayMessage("Your inventory: " + player.getInventory());
+            return;
+        }
+
+        try {
+            player.useItem(itemindex.index());
+        } catch (Exception e) {
+            view.displayMessage("Cannot use " + itemindex.item().getName() + ": " + e.getMessage());
+        }
+
+    }
+
+    private ItemIndex findItemInInventory(String target) {
+        for (int i=0 ; i<Player.getMaxInventory() ; i++) {
+            if(player.getInventory(i).getName().toLowerCase().contains(target) || target.contains(player.getInventory(i).getName().toLowerCase())) {
+                return new ItemIndex(player.getInventory(i) , i);
+            }
+        }
+        return null;
+    }
+
+    private void handleExamine(String input) {
+        String target = extractItemNameExamine(input);
+        if(target == null || target.isEmpty()) {
+
+        }
+    }
+
+    private String extractItemNameExamine(String input) {
+        String cleaned = input.toLowerCase()
+                .replaceAll("look|take a look|examine|view", "")
+                .replaceAll("the|a|an|at", "")
+                .trim();
+        return cleaned.isEmpty() ? null : cleaned;
     }
 }

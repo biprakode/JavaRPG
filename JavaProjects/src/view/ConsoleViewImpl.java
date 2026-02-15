@@ -159,8 +159,10 @@ public class ConsoleViewImpl implements ConsoleView {
         }
 
         // Show item if present
-        if (room.getItem() != null) {
-            System.out.println(YELLOW + "✦ You spot: " + room.getItem().getName() + RESET);
+        if (room.getItems() != null) {
+            for (Item item : room.getItems()) {
+                System.out.println(YELLOW + "✦ You spot: " + item.getName() + RESET);
+            }
         }
 
         // Show exits
