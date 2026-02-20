@@ -162,6 +162,8 @@ public class Room {
 
     public boolean hasItem() { return items != null; }
 
+    public HashSet<Directions> getLockedExits() { return lockedExits; }
+
     public HashMap<Directions , Room> getExits() { return roomMap; }
 
     public boolean hasExit(Directions d) {

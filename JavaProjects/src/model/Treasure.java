@@ -14,4 +14,8 @@ public class Treasure extends Item{
         player.setExperiencePoints(player.getExperiencePoints() + this.xpReward);
         System.out.println("Gained: " + xpReward + " XP");
     }
+
+    public int getXpReward() {
+        return xpReward;
+    }
 }

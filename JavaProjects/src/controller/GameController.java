@@ -6,7 +6,6 @@ import model.error.InventoryFullException;
 import model.error.PlayerAlreadyDeadException;
 import view.ConsoleViewImpl;
 
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.Scanner;
 
@@ -22,21 +21,21 @@ public class GameController {
     }
 
     public void startGame(GameDifficulty difficulty , String player_name , int totalrooms) throws Exception {
-        GameState gamestate = new GameState(difficulty);
-        Player player = new Player(player_name);
+        this.gameState = new GameState(difficulty);
+        this.player = new Player(player_name);
+        this.mapbuilder = new MapBuilder(); // TODO
+        this.commandparser = new CommandParser();
 
-        MapBuilder mapbuilder = new MapBuilder(); // TODO
+        Map<Integer , Room> worldMap = this.mapbuilder.generateMap(totalrooms);
+        this.gameState.initialize(this.player , this.mapbuilder.getSpawnRoom() , worldMap);
 
-        Map<Integer , Room> worldMap = mapbuilder.generateMap(totalrooms);
-        gamestate.initialize(player , mapbuilder.getSpawnRoom() , worldMap);
-
-        gameLoop(gamestate);
+        gameLoop(this.gameState);
     }
 
     public void gameLoop(GameState gamestate) throws Exception {
         Scanner scanner = new Scanner(System.in);
-        view.displayMessage("--- THE ADVENTURE BEGINS ---");
-        gamestate.getCurrentRoom().describe();
+        view.displayBanner("THE ADVENTURE BEGINS");
+        view.displayRoom(gamestate.getCurrentRoom());
 
         while(!gamestate.isGameOver()) {
             view.displayMessage("\nWhat will you do? > ");
@@ -47,7 +46,7 @@ public class GameController {
             }
             processCommand(input);
             if(!gamestate.getPlayer().isAlive() && !gamestate.hasLivesRemaining()) {
-                view.displayMessage("[GAMEOVER] You have perished in the depths.");
+                view.displayGameOver(gamestate, false);
                 gamestate.setGameOver(true);
             }
         }
@@ -59,6 +58,7 @@ public class GameController {
 
         if(action.isSystemCommand()) {
             handleSystemCommand(action , input);
+            return;
         }
         if(!player.isAlive()) {
             throw new PlayerAlreadyDeadException("Bruh, you're dead");
@@ -82,23 +82,23 @@ public class GameController {
         Room currentRoom = gameState.getCurrentRoom();
 
         if(!currentRoom.hasMonster()) {
-            view.displayMessage("There's nothing to attack here.");
+            view.displayWarning("There's nothing to attack here.");
             return;
         }
 
         Monster monster = currentRoom.getMonster();
-        if (!monster.isDefeated()) {
-            view.displayMessage("The " + monster.getName() + " is already defeated.");
+        if (monster.isDefeated()) {
+            view.displayInfo("The " + monster.getName() + " is already defeated.");
             return;
         }
 
         int playerDamage = calculatePlayerDamage();
         monster.takeDamage(playerDamage);
-        view.displayMessage("You attack the " + monster.getName() + " for " + playerDamage + " damage!");
-        view.displayMessage(Integer.toString(monster.getHealth()));
+        view.displayCombatAction("You", "attack", playerDamage, monster.getName());
+        view.displayMonsterHealth(monster);
 
         // Check if monster defeated
-        if (!monster.isDefeated()) {
+        if (monster.isDefeated()) {
             handleMonsterDefeated(monster);
             return;
         }
@@ -106,8 +106,8 @@ public class GameController {
         int monsterDamage = monster.attack();
         player.takeDamage(monsterDamage);
 
-        view.displayMessage("\nThe " + monster.getName() + " strikes back for " + monsterDamage + " damage!");
-        view.displayMessage("Your health: " + player.getHealth() + "/100");
+        view.displayCombatAction(monster.getName(), "strikes back at", monsterDamage, "you");
+        view.displayPlayerHealth(player);
 
         // Check if player died
         if (!player.isAlive()) {
@@ -128,13 +128,8 @@ public class GameController {
     }
 
     private void handleMonsterDefeated(Monster monster) {
-        view.displayMessage("\n🎉 You defeated the " + monster.getName() + "!");
-
         Monster.MonsterDrop reward = monster.getDefeatReward();
-        Item itemDropped = reward.item();
-        int xpAwarded = reward.xp();
-
-        view.displayMessage("[LOOT] You searched the remains of " + monster.getName() + " and found " + (itemDropped != null ? itemDropped.getName() : "nothing") + " and gained " + xpAwarded + " XP.");
+        view.displayVictory(monster, reward);
 
         gameState.incrementMonstersDefeated();
         gameState.getCurrentRoom().removeMonster();
@@ -145,27 +140,22 @@ public class GameController {
     }
 
     private void handleLevelUp() {
-        view.displayMessage("\n✨ LEVEL UP! ✨");
-        view.displayMessage("You are now level " + player.getLevel());
-        view.displayMessage("Health restored to maximum!");
         player.setHealth(100); // Full heal on level up
+        view.displayLevelUp(player, player.getLevel());
     }
 
     private void handlePlayerDeath() {
         gameState.loseLife();
 
         if(gameState.checkGameOver()) {
-            view.displayMessage("\n💀 GAME OVER 💀");
-            view.displayMessage("You have run out of lives.");
-            view.displayMessage("\nFinal Score: " + gameState.getGameScore());
+            view.displayGameOver(gameState, false);
             System.exit(0);
         } else {
-            view.displayMessage("\n💀 You died!");
-            view.displayMessage("Lives remaining: " + gameState.getLivesRemaining());
+            view.displayDefeat("You died! Lives remaining: " + gameState.getLivesRemaining());
             Room checkpoint = gameState.getCheckpoint();
             gameState.setCurrentRoom(checkpoint);
             player.reset(checkpoint);
-            view.displayMessage("\nYou respawn at the checkpoint...");
+            view.displayInfo("You respawn at the checkpoint...");
             enterRoom(checkpoint);
         }
     }
@@ -173,65 +163,48 @@ public class GameController {
     private void handleMove(String input) {
         Directions direction = commandparser.parseDirection(input);
         if(direction == null) {
-            view.displayMessage("Move where? Available exits: " + gameState.getCurrentRoom().getExits().keySet());
+            view.displayWarning("Move where?");
+            view.displayExits(gameState.getCurrentRoom().getExits(), gameState.getCurrentRoom().getLockedExits());
             return;
         }
 
         Room currentRoom = gameState.getCurrentRoom();
 
         if(!currentRoom.hasExit(direction)) {
-            view.displayMessage("You can't go " + direction + " from here.");
-            view.displayMessage("Available exits: " + currentRoom.getExits().keySet());
+            view.displayWarning("You can't go " + direction + " from here.");
+            view.displayExits(currentRoom.getExits(), currentRoom.getLockedExits());
             return;
         }
 
         Room nextRoom = currentRoom.getExit(direction);
         if(currentRoom.isExitLocked(direction)) {
-            view.displayMessage("The " + direction + " exit is locked. You need a key.");
+            view.displayWarning("The " + direction + " exit is locked. You need a key.");
             return;
         }
 
-        if(currentRoom.hasMonster() && currentRoom.getMonster().isDefeated()) { // defeated same as unalive ig
-            view.displayMessage("The " + currentRoom.getMonster().getName() + " blocks your path!");
-            view.displayMessage("You must defeat it first.");
+        if(currentRoom.hasMonster() && !currentRoom.getMonster().isDefeated()) {
+            view.displayWarning("The " + currentRoom.getMonster().getName() + " blocks your path! You must defeat it first.");
             return;
         }
 
-        gameState.moveToRoom(nextRoom); // why send direction here??
+        gameState.moveToRoom(nextRoom);
         enterRoom(nextRoom);
     }
 
     private void enterRoom(Room room) {
-        view.displayMessage("\n" + room.getName());
-        view.displayMessage(room.getDesc());
+        boolean firstVisit = !room.isVisited();
 
-        if (!room.isVisited()) {
+        if (firstVisit) {
             gameState.incrementRoomsExplored();
             room.setVisited(true);
-
             player.addXP(10);
-            view.displayMessage("\n[+10 XP for exploring new area]");
         }
 
-        // show room contents
-        if (room.hasMonster()) {
-            Monster monster = room.getMonster();
-            if (monster.isDefeated()) {
-                view.displayMessage("\n⚔️  " + monster.getName() + " appears! " + monster.getHealth());
-            }
-        }
+        view.displayRoom(room);
 
-        if (room.hasItem()) {
-            view.displayMessage("\nItems here are: ");
-            for (Item item : room.getItems()) {
-                view.displayMessage(item.getName() + " :: " + item.getDesc());
-            }
+        if (firstVisit) {
+            view.displaySuccess("+10 XP for exploring new area");
         }
-
-        if (!room.getExits().isEmpty()) {
-            view.displayMessage("\nExits: " + room.getExits().keySet());
-        }
-
     }
 
     private void handleSystemCommand(Action action, String input) {
@@ -245,12 +218,7 @@ public class GameController {
     }
 
     private void handleQuit() {
-        view.displayMessage("Thanks for playing JavaRPG!");
-        view.displayMessage("\nFinal Stats:");
-        view.displayMessage("Score: " + gameState.getGameScore());
-        view.displayMessage("Rooms Explored: " + gameState.getRoomsExplored());
-        view.displayMessage("Monsters Defeated: " + gameState.getMonstersDefeated());
-
+        view.displayGameOver(gameState, false);
         System.exit(0);
     }
 
@@ -261,7 +229,7 @@ public class GameController {
         }
 
         // TODO: Implement in Phase 4 (Guide 13)
-        view.displayMessage("Load functionality not yet implemented.");
+        view.displayWarning("Load functionality not yet implemented.");
     }
 
     private void handleHelp() {
@@ -269,11 +237,13 @@ public class GameController {
         view.displayMessage(helptext);
         Room current = gameState.getCurrentRoom();
         if (current.hasMonster()) {
-            view.displayMessage("\n💡 Tip: There's a monster here! Try 'attack monster' or 'examine monster'");
-        }if (current.hasItem()) {
-            view.displayMessage("\n💡 Tip: There are items here! Try 'take <item>' to collect them");
-        }if (!current.getExits().isEmpty()) {
-            view.displayMessage("\n💡 Tip: Available exits: " + current.getExits().keySet());
+            view.displayInfo("Tip: There's a monster here! Try 'attack monster' or 'examine monster'");
+        }
+        if (current.hasItem()) {
+            view.displayInfo("Tip: There are items here! Try 'take <item>' to collect them");
+        }
+        if (!current.getExits().isEmpty()) {
+            view.displayExits(current.getExits(), current.getLockedExits());
         }
     }
 
@@ -283,8 +253,8 @@ public class GameController {
             filename = "savegame.json"; // Default
         }
         // TODO: Implement in Phase 4 (Guide 12)
-        view.displayMessage("Save functionality not yet implemented.");
-        view.displayMessage("Target file: " + filename);
+        view.displayWarning("Save functionality not yet implemented.");
+        view.displayInfo("Target file: " + filename);
     }
 
     private String extractTarget(String input) {
@@ -301,31 +271,28 @@ public class GameController {
         Room currentRoom = gameState.getCurrentRoom();
 
         if(!currentRoom.hasItem()) {
-            view.displayMessage("There's nothing to take here.");
+            view.displayWarning("There's nothing to take here.");
             return;
         }
 
         String targetName = extractItemName(input);
         if (targetName == null) {
-            view.displayMessage("Take what? Items here: " + currentRoom.getItems());
+            view.displayWarning("Take what? Items here: " + currentRoom.getItems());
             return;
         }
 
         Item item = findItemInRoom(currentRoom, targetName);
         if (item == null) {
-            view.displayMessage("There's no '" + targetName + "' here.");
-            view.displayMessage("Items available: " + currentRoom.getItems());
+            view.displayWarning("There's no '" + targetName + "' here.");
             return;
         }
 
         try {
             player.addInventory(item);
             currentRoom.removeItem(item);
-            view.displayMessage("You take the " + item.getName() + ".");
+            view.displayItemPickup(item);
         } catch (InventoryFullException e) {
-            view.displayMessage("Your inventory is full! (Maximum 5 items)");
-            view.displayMessage("Drop something first with 'drop <item>'");
-
+            view.displayError("Your inventory is full! (Maximum " + Player.getMaxInventory() + " items). Drop something first with 'drop <item>'");
         }
     }
 
@@ -350,20 +317,20 @@ public class GameController {
     private void handleUse(String input) throws Exception {
         String targetName = extractItemName(input.replace("use" , ""));
         if (targetName == null) {
-            view.displayMessage("Use what? Your inventory: " + player.getInventory());
+            view.displayWarning("Use what? Check your inventory with 'inventory'");
             return;
         }
         ItemIndex itemindex = findItemInInventory(targetName);
         if (itemindex == null) {
-            view.displayMessage("You don't have '" + targetName + "'.");
-            view.displayMessage("Your inventory: " + player.getInventory());
+            view.displayWarning("You don't have '" + targetName + "'.");
             return;
         }
 
         try {
             player.useItem(itemindex.index());
+            view.displayItemUse(itemindex.item(), "Used successfully");
         } catch (Exception e) {
-            view.displayMessage("Cannot use " + itemindex.item().getName() + ": " + e.getMessage());
+            view.displayError("Cannot use " + itemindex.item().getName() + ": " + e.getMessage());
         }
 
     }
@@ -380,8 +347,36 @@ public class GameController {
     private void handleExamine(String input) {
         String target = extractItemNameExamine(input);
         if(target == null || target.isEmpty()) {
-
+            Room room = gameState.getCurrentRoom();
+            view.displayRoom(room);
+            return;
         }
+
+        Room room = gameState.getCurrentRoom();
+
+        // Check if it's a monster
+        if (room.hasMonster() && room.getMonster().getName().toLowerCase().contains(target)) {
+            view.displayMonster(room.getMonster());
+            return;
+        }
+
+        Item roomItem = findItemInRoom(room, target);
+        if (roomItem != null) {
+            view.displayMessage(roomItem.getDesc());
+            return;
+        }
+
+        ItemIndex invItemIndex = findItemInInventory(target);
+        if (invItemIndex != null) {
+            Item invItem = invItemIndex.item();
+            view.displayMessage(invItem.getDesc());
+            if (invItem instanceof Weapon weapon) {
+                view.displayMessage("Damage: " + weapon.getDamage());
+                view.displayMessage("Level: " + weapon.getLvl());
+            }
+            return;
+        }
+        view.displayWarning("You don't see any '" + target + "' here.");
     }
 
     private String extractItemNameExamine(String input) {
@@ -390,5 +385,35 @@ public class GameController {
                 .replaceAll("the|a|an|at", "")
                 .trim();
         return cleaned.isEmpty() ? null : cleaned;
+    }
+
+    private void handleTalk(String input) {
+        Room room = gameState.getCurrentRoom();
+
+        // Check if there's anyone to talk to
+        if (!room.hasMonster()) {
+            view.displayInfo("There's no one here to talk to.");
+            return;
+        }
+
+        Monster monster = room.getMonster();
+
+        // Peaceful monsters might talk
+        // For now, all monsters are hostile
+        if (!monster.isDefeated()) {
+            view.displayWarning("The " + monster.getName() + " snarls at you menacingly! It doesn't seem interested in talking...");
+        } else {
+            view.displayInfo("The defeated " + monster.getName() + " doesn't respond.");
+        }
+
+        // TODO: In Phase 7, add NPC system for friendly characters
+    }
+
+    private void handleInventory() {
+        view.displayInventory(player);
+    }
+
+    private void handleStats() {
+        view.displayStats(player, gameState);
     }
 }

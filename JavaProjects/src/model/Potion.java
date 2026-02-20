@@ -13,4 +13,8 @@ public class Potion extends Item{
         System.out.println("Gulp! " + player.getName() + " drank " + getName());
         player.heal(this.healAmount);
     }
+
+    public int getHealAmount() {
+        return healAmount;
+    }
 }
