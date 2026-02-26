@@ -33,7 +33,7 @@ public enum ChallengeType {
             case COMBAT_CREATIVE -> 60;
             case COMBAT_STANDARD -> 10;
             case NEGOTIATION -> 90;
-            case CREATIVE -> null;
+            case CREATIVE -> -1;
         };
     }
     public int getMaxAttempts() {
