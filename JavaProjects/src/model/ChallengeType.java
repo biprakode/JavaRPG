@@ -6,7 +6,8 @@ public enum ChallengeType {
     COMBAT_STANDARD,
     NEGOTIATION,
     PUZZLE,
-    MORAL_DILEMMA;
+    MORAL_DILEMMA,
+    CREATIVE;
 
     public String getChallengeType() {
         return switch (this) {
@@ -16,12 +17,13 @@ public enum ChallengeType {
             case NEGOTIATION -> "Negotiation";
             case PUZZLE -> "Puzzle";
             case MORAL_DILEMMA -> "Moral Dilemma";
+            case CREATIVE -> "Creative";
         };
     }
 
     public boolean requiresLLM() {
         return switch (this) {
-            case RIDDLE , COMBAT_CREATIVE , NEGOTIATION , PUZZLE , MORAL_DILEMMA -> true;
+            case RIDDLE , COMBAT_CREATIVE , NEGOTIATION , PUZZLE , MORAL_DILEMMA , CREATIVE -> true;
             case COMBAT_STANDARD -> false;
         };
     }
@@ -31,12 +33,14 @@ public enum ChallengeType {
             case COMBAT_CREATIVE -> 60;
             case COMBAT_STANDARD -> 10;
             case NEGOTIATION -> 90;
+            case CREATIVE -> null;
         };
     }
     public int getMaxAttempts() {
         return switch (this) {
             case RIDDLE,PUZZLE,MORAL_DILEMMA -> 3;
             case COMBAT_CREATIVE , COMBAT_STANDARD,NEGOTIATION -> 2;
+            case CREATIVE -> -1;
         };
     }
 

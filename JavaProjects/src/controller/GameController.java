@@ -15,19 +15,27 @@ public class GameController {
     protected MapBuilder mapbuilder;
     protected CommandParser commandparser;
     protected ConsoleView view;
+    protected LLMService llmService;
 
     public GameController() {
         this.view = new ConsoleViewImpl();
+        this.llmService = new LLMServiceImpl(
+                "http://localhost:8080/v1/chat/completions",
+                "local-model",
+                30,
+                3
+        );
     }
 
-    public void startGame(GameDifficulty difficulty , String player_name , int totalrooms) throws Exception {
+    public void startGame(GameDifficulty difficulty, String player_name, int totalrooms) throws Exception {
         this.gameState = new GameState(difficulty);
         this.player = new Player(player_name);
-        this.mapbuilder = new MapBuilder(); // TODO
+        this.mapbuilder = new MapBuilder(this.llmService);
         this.commandparser = new CommandParser();
 
-        Map<Integer , Room> worldMap = this.mapbuilder.generateMap(totalrooms);
-        this.gameState.initialize(this.player , this.mapbuilder.getSpawnRoom() , worldMap);
+        Room spawnRoom = this.mapbuilder.generateMap(totalrooms);
+        Map<Integer, Room> worldMap = this.mapbuilder.getWorldMap();
+        this.gameState.initialize(this.player, spawnRoom, worldMap);
 
         gameLoop(this.gameState);
     }

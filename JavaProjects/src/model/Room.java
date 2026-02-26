@@ -160,7 +160,7 @@ public class Room {
         isVisited = visited;
     }
 
-    public boolean hasItem() { return items != null; }
+    public boolean hasItem() { return items != null && !items.isEmpty(); }
 
     public HashSet<Directions> getLockedExits() { return lockedExits; }
 

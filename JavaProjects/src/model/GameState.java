@@ -26,13 +26,8 @@ public class GameState {
     private int livesAtCheckpoint;
 
     public GameState(GameDifficulty difficulty) {
-        maxLives = switch (difficulty) {
-            case ULTRA -> 1;
-            case HARD -> 2;
-            case MEDIUM -> 3;
-            case EASY -> 4;
-            default -> -1;
-        };
+        this.difficulty = difficulty;
+        this.maxLives = difficulty.getMaxLives();
         this.isGameOver = false;
         this.totalScore = 0;
         this.livesRemaining = maxLives;
@@ -102,7 +97,7 @@ public class GameState {
     }
 
     public boolean checkGameOver() {
-        if(player.isAlive() || livesRemaining<=0) {
+        if(!player.isAlive() && livesRemaining <= 0) {
             isGameOver = true;
         }
         return isGameOver;

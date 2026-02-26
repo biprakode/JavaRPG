@@ -49,6 +49,7 @@ public interface ConsoleView {
     void displayStats(Player player, GameState state);
     void displayGameOver(GameState state, boolean victory);
     void displayWelcome(GameDifficulty difficulty);
+    void displayWelcome();
 
     // === Notifications ===
     void displayError(String error);
