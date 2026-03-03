@@ -3,7 +3,7 @@ package model;
 public class Key extends Item{
     private String targetId;
 
-    Key(String n , String d, String targetId) {
+    public Key(String n , String d, String targetId) {
         super(n , d , ItemType.KEY);
         this.targetId = targetId;
     }

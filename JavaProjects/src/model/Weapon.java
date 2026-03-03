@@ -7,7 +7,7 @@ public class Weapon extends Item {
     private int cooldown;
     private WeaponLvl lvl;
 
-    Weapon(String n, String d, int damage, int cooldown) {
+    public Weapon(String n, String d, int damage, int cooldown) {
         super(n , d , ItemType.WEAPON);
         this.damage = damage;
         this.cooldown = cooldown;

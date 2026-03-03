@@ -3,7 +3,7 @@ package model;
 public class Treasure extends Item{
     private int xpReward;
 
-    Treasure(String n, String d, int xpReward) {
+    public Treasure(String n, String d, int xpReward) {
         super(n , d , ItemType.TREASURE);
         this.xpReward = xpReward;
     }

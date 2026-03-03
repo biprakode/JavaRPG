@@ -16,8 +16,11 @@ public class GameController {
     protected CommandParser commandparser;
     protected ConsoleView view;
     protected LLMService llmService;
+    private ChallengeController challengeController;
+    private ChallengeEvaluatorImpl evaluator;
+    private Challenge activeChallenge;
 
-    public GameController() {
+    public GameController(GameDifficulty difficulty) {
         this.view = new ConsoleViewImpl();
         this.llmService = new LLMServiceImpl(
                 "http://localhost:8080/v1/chat/completions",
@@ -25,6 +28,10 @@ public class GameController {
                 30,
                 3
         );
+        this.evaluator = new ChallengeEvaluatorImpl();
+        this.gameState = new GameState(difficulty);
+        this.challengeController = new ChallengeController(llmService , view , gameState , evaluator);
+        this.activeChallenge = null;
     }
 
     public void startGame(GameDifficulty difficulty, String player_name, int totalrooms) throws Exception {
@@ -62,6 +69,11 @@ public class GameController {
     }
 
     public void processCommand(String input) throws Exception {
+        if (activeChallenge != null) {
+            processChallengeResponse(input);
+            return;
+        }
+
         Action action = this.commandparser.parse(input).getAction();
 
         if(action.isSystemCommand()) {
@@ -85,6 +97,65 @@ public class GameController {
         }
     }
 
+    private void processChallengeResponse(String input) {
+        String lowerInput = input.toLowerCase().trim();
+
+        if (lowerInput.equals("hint") || lowerInput.equals("help")) {
+            try {
+                int nextHintLevel = activeChallenge.getHintsUsed() + 1;
+                challengeController.requiresHint(nextHintLevel);
+            } catch (Exception e) {
+                view.displayMessage("No hints available.");
+            }
+            return;
+        }
+
+        if (lowerInput.equals("skip") || lowerInput.equals("abort")) {
+            try {
+                challengeController.abortChallenge();
+            } catch (Exception e) {
+                view.displayMessage("Cannot abort challenge.");
+            }
+            activeChallenge = null;
+            if (!player.isAlive()) {
+                handlePlayerDeath();
+            }
+            return;
+        }
+
+        // Submit answer to ChallengeController
+        try {
+            challengeController.submitResponse(input);
+        } catch (Exception e) {
+            // Player may have died from challenge damage (RIPException)
+            if (!player.isAlive()) {
+                activeChallenge = null;
+                handlePlayerDeath();
+                return;
+            }
+            view.displayMessage("Error processing response: " + e.getMessage());
+            return;
+        }
+
+        // Check if challenge completed (success or attempts exhausted)
+        if (!challengeController.hasActiveChallenge()) {
+            handleChallengeComplete();
+        }
+    }
+
+    private void handleChallengeComplete() {
+        // Handle door unlock if this was a door challenge
+        if (activeChallenge != null) {
+            String dirStr = activeChallenge.getMetaData("unlockDirection");
+            if (dirStr != null && activeChallenge.getWasSuccesful()) {
+                Directions direction = Directions.valueOf(dirStr);
+                gameState.getCurrentRoom().unlockExit(direction);
+                view.displayMessage("The " + direction + " door swings open!");
+            }
+        }
+        activeChallenge = null;
+    }
+
 
     private void handleAttack(String input) throws Exception{
         Room currentRoom = gameState.getCurrentRoom();
@@ -97,6 +168,11 @@ public class GameController {
         Monster monster = currentRoom.getMonster();
         if (monster.isDefeated()) {
             view.displayInfo("The " + monster.getName() + " is already defeated.");
+            return;
+        }
+
+        if (currentRoom.getRoomtype() == RoomType.BOSS && !monster.isDefeated() && activeChallenge == null) {
+            triggerBossCombatChallenge(monster , this.gameState.getCurrentRoom());
             return;
         }
 
@@ -120,6 +196,20 @@ public class GameController {
         // Check if player died
         if (!player.isAlive()) {
             handlePlayerDeath();
+        }
+    }
+
+    private void triggerBossCombatChallenge(Monster monster, Room currentRoom) {
+        try {
+            ChallengeType challengeType = pickRandomChallengeType();
+            challengeController.initiateChallenge(currentRoom , challengeType);
+            activeChallenge = challengeController.getActiveChallenge();
+            if (activeChallenge != null) {
+                view.displayMessage("\nBefore you can engage, you must solve the guardian's challenge...");
+            }
+        } catch (Exception e) {
+            view.displayMessage("The boss roars, ready for battle!");
+            activeChallenge = null;
         }
     }
 
@@ -186,7 +276,12 @@ public class GameController {
 
         Room nextRoom = currentRoom.getExit(direction);
         if(currentRoom.isExitLocked(direction)) {
-            view.displayWarning("The " + direction + " exit is locked. You need a key.");
+            if (hasKey(player)) {
+                view.displayMessage("The " + direction + " exit is locked. You can use a key or attempt the magical puzzle.");
+                view.displayMessage("Type 'use key' to unlock, or 'solve' to attempt the puzzle.");
+            } else {
+                triggerDoorUnlockChallenge(direction);
+            }
             return;
         }
 
@@ -197,6 +292,23 @@ public class GameController {
 
         gameState.moveToRoom(nextRoom);
         enterRoom(nextRoom);
+    }
+
+    private void triggerDoorUnlockChallenge(Directions direction) {
+        try {
+            challengeController.initiateChallenge(gameState.getCurrentRoom(), ChallengeType.PUZZLE);
+            activeChallenge = challengeController.getActiveChallenge();
+            if (activeChallenge != null) {
+                activeChallenge.addMetaData("unlockDirection", direction.toString());
+            }
+        } catch (Exception e) {
+            view.displayMessage("The door is locked and there's no way to open it.");
+            activeChallenge = null;
+        }
+    }
+
+    private boolean hasKey(Player player) {
+        return player.getInventory().stream().anyMatch(item -> item instanceof Key);
     }
 
     private void enterRoom(Room room) {
@@ -213,6 +325,30 @@ public class GameController {
         if (firstVisit) {
             view.displaySuccess("+10 XP for exploring new area");
         }
+        if(firstVisit && Math.random() < 0.2) {
+            triggerExplorationChallenge(room);
+        }
+    }
+
+    private void triggerExplorationChallenge(Room room) {
+        try {
+            ChallengeType challengeType = pickRandomChallengeType();
+            challengeController.initiateChallenge(room , challengeType);
+            activeChallenge = challengeController.getActiveChallenge();
+        } catch (Exception e) {
+            view.displayMessage("An ancient puzzle appears, but it seems broken...");
+            activeChallenge = null;
+        }
+    }
+
+    private ChallengeType pickRandomChallengeType() {
+        ChallengeType[] types = {
+                ChallengeType.RIDDLE,
+                ChallengeType.PUZZLE,
+                ChallengeType.MORAL_DILEMMA,
+                ChallengeType.NEGOTIATION
+        };
+        return types[(int)(Math.random() * types.length)];
     }
 
     private void handleSystemCommand(Action action, String input) {

@@ -13,7 +13,7 @@ public class Monster {
     private boolean isDefeated;
     private Item itemToDrop;
 
-    Monster(String name, String desc, int attack, int maxHealth, MonsterDifficulty difficulty , monsterType type) {
+    public Monster(String name, String desc, int attack, MonsterDifficulty difficulty , monsterType type) {
         this.name = name;
         this.desc = desc;
         this.attack = attack;

@@ -3,7 +3,7 @@ package model;
 public class Potion extends Item{
     private int healAmount;
 
-    Potion(String n, String d, int healCap) {
+    public Potion(String n, String d, int healCap) {
         super(n , d , ItemType.POTION);
         healAmount = healCap;
     }

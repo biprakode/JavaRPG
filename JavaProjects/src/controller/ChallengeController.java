@@ -21,10 +21,11 @@ public class ChallengeController {
 
     private boolean allowHints;
 
-    public ChallengeController(LLMService llm, ConsoleView v, GameState st) {
+    public ChallengeController(LLMService llm, ConsoleView v, GameState st , ChallengeEvaluator ec) {
         llmService = llm;
         view = v;
         gameState = st;
+        challengeEvaluator = ec;
         if(st.getDifficulty() != GameDifficulty.ULTRA) {
             allowHints = true;
         }
@@ -53,6 +54,8 @@ public class ChallengeController {
         }
         activeChallenge.setChallengeState(ChallengeState.ACTIVE);
     }
+
+
 
     public void submitResponse(String response) {
         if(activeChallenge.getChallengeState() != ChallengeState.ACTIVE) {
@@ -382,7 +385,7 @@ public class ChallengeController {
     }
 
     // Helper method to map GameDifficulty to ChallengeDifficulty
-    private ChallengeDifficulty mapGameToChallengeDifficulty(GameDifficulty gameDifficulty) {
+    public ChallengeDifficulty mapGameToChallengeDifficulty(GameDifficulty gameDifficulty) {
         return switch (gameDifficulty) {
             case EASY -> ChallengeDifficulty.EASY;
             case MEDIUM -> ChallengeDifficulty.MEDIUM;
@@ -396,5 +399,9 @@ public class ChallengeController {
         // TODO: Implement proper item generation, possibly via LLM
         // For now, return null - rewards can be added later
         return null;
+    }
+
+    public void setActiveChallenge(Challenge challenge) {
+        this.activeChallenge = challenge;
     }
 }

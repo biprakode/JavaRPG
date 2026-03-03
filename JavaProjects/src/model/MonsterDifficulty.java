@@ -10,4 +10,6 @@ public enum MonsterDifficulty {
             case HARD -> "Hard";
         };
     }
+
+
 }

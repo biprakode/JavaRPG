@@ -89,7 +89,7 @@ public class Room {
         }
     }
 
-    void addItem(Item item) {
+    public void addItem(Item item) {
         this.items.add(item);
     }
 
@@ -167,7 +167,7 @@ public class Room {
     public HashMap<Directions , Room> getExits() { return roomMap; }
 
     public boolean hasExit(Directions d) {
-        return getExit(d) != null;
+        return roomMap.containsKey(d);
     }
 
     public void removeMonster() {monster = null;}

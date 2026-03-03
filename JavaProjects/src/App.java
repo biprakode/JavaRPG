@@ -14,7 +14,7 @@ public class App {
         GameDifficulty difficulty = selectDifficulty();
         String playerName = enterUserName();
         displayIntro();
-        GameController game = new GameController();
+        GameController game = new GameController(difficulty);
         game.startGame(difficulty, playerName, 20);
     }
 

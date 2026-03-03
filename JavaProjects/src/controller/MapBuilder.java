@@ -11,6 +11,7 @@ import java.util.Random;
 public class MapBuilder {
     private Random random = new Random();
     private Map<Integer, Room> worldMap;
+    private String dungeonTheme;
     Room spawnRoom;
     LLMService llmService;
 
@@ -40,7 +41,7 @@ public class MapBuilder {
     }
 
     private void populateRoomContent(List<Room> rooms) {
-        String dungeonTheme = generateDungeonTheme();
+        this.dungeonTheme = generateDungeonTheme();
 
         for (int i = 0; i < rooms.size(); i++) {
             Room room = rooms.get(i);
@@ -48,7 +49,119 @@ public class MapBuilder {
             room.setName(content.title());
             room.setDesc(content.description());
         }
+
+        placeMonsters(rooms);
     }
+
+    private void placeMonsters(List<Room> rooms) {
+        monsterType[] types = monsterType.values();
+
+        for (int i = 0; i < rooms.size(); i++) {
+            Room room = rooms.get(i);
+
+            if (room.getRoomtype() == RoomType.SAFE) {
+                continue;
+            }
+
+            // Pick difficulty based on position in dungeon
+            MonsterDifficulty difficulty;
+            int attack;
+            if (room.getRoomtype() == RoomType.BOSS) {
+                difficulty = MonsterDifficulty.HARD;
+                attack = 30;
+            } else if (i < rooms.size() / 3) {
+                difficulty = MonsterDifficulty.EASY;
+                attack = 8;
+            } else if (i < 2 * rooms.size() / 3) {
+                difficulty = MonsterDifficulty.MEDIUM;
+                attack = 15;
+            } else {
+                difficulty = MonsterDifficulty.HARD;
+                attack = 22;
+            }
+
+            // NORMAL rooms: 65% chance; BOSS rooms: always
+            if (room.getRoomtype() == RoomType.NORMAL && random.nextInt(100) >= 65) {
+                continue;
+            }
+
+            monsterType type = types[random.nextInt(types.length)];
+            String[] content = generateMonsterContent(type, difficulty);
+            Monster monster = new Monster(content[0], content[1], attack, difficulty, type);
+            room.setMonster(monster);
+        }
+    }
+
+    private String[] generateMonsterContent(monsterType type, MonsterDifficulty difficulty) {
+        String prompt = buildMonsterPrompt(type, difficulty, dungeonTheme);
+        try {
+            String response = llmService.generateChallenge(
+                    ChallengeType.CREATIVE,
+                    ChallengeDifficulty.EASY,
+                    prompt
+            );
+            String name = extractJsonField(response, "name");
+            String description = extractJsonField(response, "description");
+            if (name != null && description != null) {
+                return new String[]{name, description};
+            }
+        } catch (Exception e) {
+            // fall through to fallback
+        }
+        return fallbackMonsterContent(type, difficulty);
+    }
+
+    private String[] fallbackMonsterContent(monsterType type, MonsterDifficulty difficulty) {
+        String[][] easy = {
+                {"Cave Rat", "A mangy rodent with yellowed fangs, hissing from the shadows."},
+                {"Fungal Crawler", "A mold-encrusted insect that skitters across damp stone."},
+                {"Decrepit Skeleton", "Bones held together by faint dark magic, rattling as it moves."}
+        };
+        String[][] medium = {
+                {"Armored Ghoul", "A rotting corpse in rusted chainmail, its dead eyes burning with hunger."},
+                {"Stone Golem", "A hulking figure of cracked granite that grinds forward relentlessly."},
+                {"Shadow Stalker", "A wisp of living darkness that strikes from blind corners."}
+        };
+        String[][] hard = {
+                {"Abyssal Wyrm", "A serpentine horror wreathed in black flame, radiating dread."},
+                {"Iron Revenant", "An undying knight fused to cursed plate armor, sword raised eternally."},
+                {"Dread Chimera", "A three-headed monstrosity that fills the chamber with its roar."}
+        };
+
+        String[][] pool = switch (difficulty) {
+            case EASY -> easy;
+            case MEDIUM -> medium;
+            case HARD -> hard;
+        };
+
+        return pool[random.nextInt(pool.length)];
+    }
+
+    private String buildMonsterPrompt(monsterType type, MonsterDifficulty difficulty, String dungeonTheme) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Generate a monster for a text-based RPG dungeon.\n\n");
+        prompt.append("Dungeon Theme: ").append(dungeonTheme).append("\n");
+        prompt.append("Monster Difficulty: ").append(difficulty).append("\n");
+        prompt.append("Monster Type: ").append(type.getType()).append("\n");
+
+        switch (difficulty) {
+            case EASY -> prompt.append("A weak early-dungeon creature. Unsettling but not terrifying.\n");
+            case MEDIUM -> prompt.append("A dangerous mid-dungeon threat. Noticeably stronger and meaner.\n");
+            case HARD -> prompt.append("A fearsome late-dungeon or boss creature. Epic and foreboding.\n");
+        }
+
+        prompt.append("""
+        \nReturn ONLY a JSON object:
+        {
+          "name": "Short name (1-3 words)",
+          "description": "Brief menacing description (1 sentence, under 100 characters)"
+        }
+        """);
+
+        return prompt.toString();
+    }
+
+
 
     private String generateDungeonTheme() {
         String prompt = """
