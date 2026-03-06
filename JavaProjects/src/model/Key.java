@@ -1,9 +1,9 @@
 package model;
 
 public class Key extends Item{
-    private String targetId;
+    private int targetId;
 
-    public Key(String n , String d, String targetId) {
+    public Key(String n , String d, int targetId) {
         super(n , d , ItemType.KEY);
         this.targetId = targetId;
     }
@@ -15,5 +15,5 @@ public class Key extends Item{
         System.out.println("Checking " + getName() + " against nearby locks...");
     }
 
-    public String getTargetId() { return targetId; }
+    public int getTargetId() { return targetId; }
 }

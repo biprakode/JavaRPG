@@ -64,6 +64,10 @@ public class Room {
         }
     }
 
+    public void lockExit(Directions d) {
+        lockedExits.add(d);
+    }
+
     public boolean hasMonster() {
         return (monster != null); // Fixed logic
     }

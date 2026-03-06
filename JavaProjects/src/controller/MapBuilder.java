@@ -52,6 +52,43 @@ public class MapBuilder {
 
         placeMonsters(rooms);
         placeItems(rooms);
+        placeLocks(rooms);
+    }
+
+    private void placeLocks(List<Room> rooms) {
+        if (rooms.size() < 3) return; // need at least spawn + middle + boss
+
+        // 1-3 locks total, scaled to dungeon size
+        int maxLocks = Math.min(3, (rooms.size() - 2) / 2);
+        int numLocks = random.nextInt(maxLocks) + 1;
+
+        // Eligible rooms: not spawn (0), not boss (last)
+        List<Integer> candidates = new ArrayList<>();
+        for (int i = 1; i < rooms.size() - 1; i++) {
+            candidates.add(i);
+        }
+
+        for (int n = 0; n < numLocks && !candidates.isEmpty(); n++) {
+            // Pick random eligible room
+            int pick = random.nextInt(candidates.size());
+            int roomIndex = candidates.remove(pick);
+            Room room = rooms.get(roomIndex);
+
+            // direction that actually has an exit
+            List<Directions> exits = new ArrayList<>(room.getExits().keySet());
+            if (exits.isEmpty()) continue;
+            Directions dir = exits.get(random.nextInt(exits.size()));
+
+            // Don't double-lock
+            if (room.isExitLocked(dir)) continue;
+
+            room.lockExit(dir);
+
+            // Place key in a random room before the locked room
+            int keyRoomIndex = random.nextInt(roomIndex); // 0 to roomIndex-1
+            String[] keyContent = generateItemContent(ItemType.KEY, 0.5f);
+            rooms.get(keyRoomIndex).addItem(new Key(keyContent[0], keyContent[1], room.getId()));
+        }
     }
 
     private void placeItems(List<Room> rooms) {
