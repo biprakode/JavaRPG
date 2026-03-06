@@ -51,7 +51,156 @@ public class MapBuilder {
         }
 
         placeMonsters(rooms);
+        placeItems(rooms);
     }
+
+    private void placeItems(List<Room> rooms) {
+        for (int i = 0; i < rooms.size(); i++) {
+            Room room = rooms.get(i);
+
+            if (room.getRoomtype() == RoomType.SAFE) {
+                // Starting gear: weak potion + weak weapon
+                float itemStrength = 0.1f + random.nextFloat() * 0.15f; // 0.10–0.25
+                String[] potionContent = generateItemContent(ItemType.POTION, itemStrength);
+                room.addItem(new Potion(potionContent[0], potionContent[1], healAmountFromStrength(itemStrength)));
+
+                String[] weaponContent = generateItemContent(ItemType.WEAPON, itemStrength);
+                WeaponLvl lvl = WeaponLvl.fromStrength(itemStrength);
+                room.addItem(new Weapon(weaponContent[0], weaponContent[1], lvl.damage, (int) lvl.cooldown));
+
+            } else if (room.getRoomtype() == RoomType.BOSS) {
+                // Reward: strong treasure + strong weapon
+                float itemStrength = 0.75f + random.nextFloat() * 0.25f; // 0.75–1.0
+                String[] treasureContent = generateItemContent(ItemType.TREASURE, itemStrength);
+                room.addItem(new Treasure(treasureContent[0], treasureContent[1], xpRewardFromStrength(itemStrength)));
+
+                String[] potionContent = generateItemContent(ItemType.POTION, itemStrength);
+                room.addItem(new Potion(potionContent[0], potionContent[1], healAmountFromStrength(itemStrength)));
+
+                String[] weaponContent = generateItemContent(ItemType.WEAPON, itemStrength);
+                WeaponLvl lvl = WeaponLvl.fromStrength(itemStrength);
+                room.addItem(new Weapon(weaponContent[0], weaponContent[1], lvl.damage, (int) lvl.cooldown));
+
+            } else if (room.getRoomtype() == RoomType.NORMAL) {
+                int numItems = random.nextInt(3); // 0, 1, or 2 items
+                float progress = (float) i / rooms.size(); // 0.0 at start, ~1.0 at end
+                for (int j = 0; j < numItems; j++) {
+                    // Pick type: potions common, weapons uncommon, treasure rare
+                    float itemStrength = Math.max(0.05f, progress * 0.6f + random.nextFloat() * 0.4f);
+                    itemStrength = Math.min(itemStrength, 0.999f);
+                    ItemType type = pickRandomItemType();
+                    String[] content = generateItemContent(type, itemStrength);
+                    switch (type) {
+                        case WEAPON -> {
+                            WeaponLvl lvl = WeaponLvl.fromStrength(itemStrength);
+                            room.addItem(new Weapon(content[0], content[1], lvl.damage, (int) lvl.cooldown));
+                        }
+                        case POTION -> room.addItem(new Potion(content[0], content[1], healAmountFromStrength(itemStrength)));
+                        case TREASURE -> room.addItem(new Treasure(content[0], content[1], xpRewardFromStrength(itemStrength)));
+                        case KEY -> {} // Keys placed in placeLocks() (Section 3)
+                    }
+                }
+            }
+        }
+    }
+
+    private ItemType pickRandomItemType() {
+        int roll = random.nextInt(100);
+        if (roll < 45) return ItemType.POTION; // 45% potion
+        if (roll < 75) return ItemType.WEAPON; // 30% weapon
+        return ItemType.TREASURE; // 25% treasure
+    }
+
+    private int healAmountFromStrength(float strength) {
+        // 15 HP at strength 0 → 65 HP at strength 1
+        return 15 + (int) (strength * 50);
+    }
+
+    private int xpRewardFromStrength(float strength) {
+        // 10 XP at strength 0 → 100 XP at strength 1
+        return 10 + (int) (strength * 90);
+    }
+
+    private String[] generateItemContent(ItemType type , float itemStrength) {
+        String prompt = buildItemPrompt(type , itemStrength , dungeonTheme);
+        try {
+            String response = llmService.generateChallenge(
+                    ChallengeType.CREATIVE,
+                    ChallengeDifficulty.EASY,
+                    prompt
+            );
+            String name = extractJsonField(response, "name");
+            String description = extractJsonField(response, "description");
+            if (name != null && description != null) {
+                return new String[]{name, description};
+            }
+        } catch (Exception e) {
+            // fall through to fallback
+        }
+        return fallbackItemContent(type, itemStrength);
+    }
+
+    private String[] fallbackItemContent(ItemType type, float itemStrength) {
+        // Tier: 0 = weak, 1 = mid, 2 = strong, 3 = legendary
+        int tier = (int) (itemStrength * 4);
+        tier = Math.max(0, Math.min(tier, 3));
+
+        String[][] weapons = {
+                {"Rusty Dagger", "A pitted blade that's seen better days."},
+                {"Iron Shortsword", "A sturdy blade with a leather-wrapped grip."},
+                {"Enchanted Sabre", "A gleaming sword that hums with faint magic."},
+                {"Abyssal Cleaver", "A legendary blade forged in darkness itself."}
+        };
+        String[][] potions = {
+                {"Weak Tonic", "A cloudy vial of bitter restorative liquid."},
+                {"Healing Draught", "A warm potion that mends minor wounds."},
+                {"Elixir of Vigor", "A bright potion radiating restorative energy."},
+                {"Phoenix Tears", "A legendary elixir that can restore even the gravest wounds."}
+        };
+        String[][] treasures = {
+                {"Tarnished Coin", "A worn coin bearing an ancient king's face."},
+                {"Silver Goblet", "An ornate cup studded with small gems."},
+                {"Golden Idol", "A heavy idol depicting a forgotten deity."},
+                {"Dragon's Hoard Gem", "A massive jewel pulsing with inner fire."}
+        };
+
+        return switch (type) {
+            case WEAPON -> weapons[tier];
+            case POTION -> potions[tier];
+            case TREASURE -> treasures[tier];
+            case KEY -> new String[]{"Old Key", "A heavy iron key with strange markings."};
+        };
+    }
+
+    private String buildItemPrompt(ItemType type, float itemStrength, String dungeonTheme) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append(String.format("Generate a %s for a text-based RPG dungeon.\n\n" , type.toString()));
+        prompt.append("Dungeon Theme: ").append(dungeonTheme).append("\n");
+        prompt.append("Item Strength (0-1): ").append(itemStrength).append("\n");
+
+        String itemType = type.toString().toLowerCase(); // e.g., "potion" or "weapon"
+
+        if (itemStrength < 0.25f) {
+            prompt.append(String.format("A common, basic %s. Functional, but shows signs of wear or simple craftsmanship.\n", itemType));
+        } else if (itemStrength < 0.5f) {
+            prompt.append(String.format("A sturdy, reliable %s. Clearly better than standard fare; a dependable tool for an adventurer.\n", itemType));
+        } else if (itemStrength < 0.75f) {
+            prompt.append(String.format("A rare and finely-honed %s. It hums with quality (or magic) and stands out as a prize.\n", itemType));
+        } else {
+            prompt.append(String.format("A legendary, artifact-grade %s. It is an epic masterpiece of world-shaking importance.\n", itemType));
+        }
+
+        prompt.append("""
+        \nReturn ONLY a JSON object:
+        {
+          "name": "Short name (1-3 words)",
+          "description": "Brief description of %s (1 sentence, under 100 characters)"
+        }
+        """.formatted(itemType));
+
+        return prompt.toString();
+    }
+
 
     private void placeMonsters(List<Room> rooms) {
         monsterType[] types = monsterType.values();

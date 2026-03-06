@@ -148,10 +148,6 @@ public class Room {
         return items;
     }
 
-    public void setItems(Item item) {
-        this.items.add(item);
-    }
-
     public boolean isVisited() {
         return isVisited;
     }
