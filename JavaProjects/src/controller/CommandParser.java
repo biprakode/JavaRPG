@@ -40,6 +40,7 @@ public class CommandParser {
         CommandMap.put("take", Action.TAKE);
         CommandMap.put("get", Action.TAKE);
         CommandMap.put("grab", Action.TAKE);
+        CommandMap.put("pick", Action.TAKE);
         CommandMap.put("pickup", Action.TAKE);
 
         CommandMap.put("use", Action.USE);
@@ -254,6 +255,31 @@ public class CommandParser {
     }
 
     public String getHelpText() {
+        return """
+                === COMMANDS ===
+                Movement:  go/move/walk/run <direction>
+                Directions: north(n), south(s), east(e), west(w)
+                           (or just type a direction: "north")
 
+                Combat:    attack/fight/hit/strike <target>
+
+                Items:     take/get/grab <item>
+                           use/activate/consume <item>
+                           examine/look/inspect/check [target]
+
+                Social:    talk/speak/chat <character>
+
+                Info:      inventory/inv/bag    - view your items
+                           stats/status/health  - view your stats
+                           help/commands/?      - this help text
+
+                System:    save  - save your game
+                           load  - load a saved game
+                           quit/exit - leave the game
+
+                During Challenges:
+                           hint/help  - request a hint (costs XP)
+                           skip/abort - abandon the challenge
+                """;
     }
 }

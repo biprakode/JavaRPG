@@ -21,13 +21,17 @@ public class GameController {
     private Challenge activeChallenge;
 
     public GameController(GameDifficulty difficulty) {
-        this.view = new ConsoleViewImpl();
-        this.llmService = new LLMServiceImpl(
+        this(difficulty, new LLMServiceImpl(
                 "http://localhost:8080/v1/chat/completions",
-                "local-model",
-                30,
+                "qwen2.5-3b-instruct",
+                60,
                 3
-        );
+        ));
+    }
+
+    public GameController(GameDifficulty difficulty, LLMService llmService) {
+        this.view = new ConsoleViewImpl();
+        this.llmService = llmService;
         this.evaluator = new ChallengeEvaluatorImpl();
         this.gameState = new GameState(difficulty);
         this.challengeController = new ChallengeController(llmService , view , gameState , evaluator);
@@ -74,7 +78,18 @@ public class GameController {
             return;
         }
 
-        Action action = this.commandparser.parse(input).getAction();
+        Command command = this.commandparser.parse(input);
+        Action action = command.getAction();
+
+        if (action == Action.UNKNOWN) {
+            String suggestion = command.getSuggestion();
+            if (suggestion != null) {
+                view.displayWarning("Unknown command. Did you mean '" + suggestion + "'?");
+            } else {
+                view.displayWarning("Unknown command. Type 'help' for a list of commands.");
+            }
+            return;
+        }
 
         if(action.isSystemCommand()) {
             handleSystemCommand(action , input);
@@ -93,7 +108,7 @@ public class GameController {
             case TALK -> handleTalk(input);
             case INVENTORY -> handleInventory();
             case STATS -> handleStats();
-            default -> throw new InvalidCommandException("Unknown action: " + action);
+            default -> view.displayWarning("Unknown command. Type 'help' for a list of commands.");
         }
     }
 
@@ -229,12 +244,63 @@ public class GameController {
         Monster.MonsterDrop reward = monster.getDefeatReward();
         view.displayVictory(monster, reward);
 
+        // Award XP from monster kill
+        if (reward.xp() > 0) {
+            player.addXP(reward.xp());
+        }
+
+        // Drop item from monster loot (if any)
+        if (reward.item() != null) {
+            gameState.getCurrentRoom().addItem(reward.item());
+            view.displayItemDrop(reward.item());
+        }
+
+        // Generate random drop based on monster difficulty
+        Item drop = generateMonsterDrop(monster.getDifficulty());
+        if (drop != null) {
+            gameState.getCurrentRoom().addItem(drop);
+            view.displayItemDrop(drop);
+        }
+
         gameState.incrementMonstersDefeated();
         gameState.getCurrentRoom().removeMonster();
 
         if(player.levelUp()) {
             handleLevelUp();
         }
+
+        if(gameState.getCurrentRoom().getRoomtype() == RoomType.BOSS) {
+            view.displayGameOver(gameState , true);
+            gameState.setGameOver(true);
+            view.displayStats(player , gameState);
+        }
+    }
+
+    private Item generateMonsterDrop(MonsterDifficulty difficulty) {
+        double dropChance = switch (difficulty) {
+            case EASY -> 0.3;
+            case MEDIUM -> 0.5;
+            case HARD -> 1.0;
+        };
+        if (Math.random() > dropChance) return null;
+
+        return switch (difficulty) {
+            case EASY -> new Potion("Small Vial", "A potion found on the creature", 15);
+            case MEDIUM -> {
+                if (Math.random() < 0.5) {
+                    yield new Potion("Health Draught", "A restorative found on the fallen foe", 30);
+                } else {
+                    yield new Weapon("Crude Blade", "A weapon pried from the monster's grip", 12, 2);
+                }
+            }
+            case HARD -> {
+                if (Math.random() < 0.4) {
+                    yield new Weapon("Champion's Edge", "A powerful weapon from a worthy foe", 25, 1);
+                } else {
+                    yield new Treasure("Monster Hoard", "Valuables hoarded by the beast", 50);
+                }
+            }
+        };
     }
 
     private void handleLevelUp() {
@@ -247,7 +313,7 @@ public class GameController {
 
         if(gameState.checkGameOver()) {
             view.displayGameOver(gameState, false);
-            System.exit(0);
+            gameState.setGameOver(true);
         } else {
             view.displayDefeat("You died! Lives remaining: " + gameState.getLivesRemaining());
             Room checkpoint = gameState.getCheckpoint();
@@ -259,7 +325,9 @@ public class GameController {
     }
 
     private void handleMove(String input) {
-        Directions direction = commandparser.parseDirection(input);
+        //strip verb before passing direction
+        String dir = extractDirection(input);
+        Directions direction = commandparser.parseDirection(dir);
         if(direction == null) {
             view.displayWarning("Move where?");
             view.displayExits(gameState.getCurrentRoom().getExits(), gameState.getCurrentRoom().getLockedExits());
@@ -292,6 +360,17 @@ public class GameController {
 
         gameState.moveToRoom(nextRoom);
         enterRoom(nextRoom);
+    }
+
+    private String extractDirection(String input) {
+        for(String word : input.split(" ")) {
+            for(Directions direction : Directions.values()) {
+                if(word.equalsIgnoreCase(direction.getShortName())) {
+                    return direction.getShortName();
+                }
+            }
+        }
+        return null;
     }
 
     private void triggerDoorUnlockChallenge(Directions direction) {
@@ -363,7 +442,7 @@ public class GameController {
 
     private void handleQuit() {
         view.displayGameOver(gameState, false);
-        System.exit(0);
+        gameState.setGameOver(true);
     }
 
     private void handleLoad(String input) {
@@ -443,7 +522,7 @@ public class GameController {
     private String extractItemName(String input) {
         String cleaned = input.toLowerCase()
                 .replaceAll("take|get|pick up|grab|pick", "")
-                .replaceAll("the|a|an", "")
+                .replaceAll("the|an", "")
                 .trim();
         return cleaned.isEmpty() ? null : cleaned;
     }
@@ -480,7 +559,7 @@ public class GameController {
     }
 
     private ItemIndex findItemInInventory(String target) {
-        for (int i=0 ; i<Player.getMaxInventory() ; i++) {
+        for (int i=0 ; i<player.getInventory().size() ; i++) {
             if(player.getInventory(i).getName().toLowerCase().contains(target) || target.contains(player.getInventory(i).getName().toLowerCase())) {
                 return new ItemIndex(player.getInventory(i) , i);
             }
@@ -526,7 +605,7 @@ public class GameController {
     private String extractItemNameExamine(String input) {
         String cleaned = input.toLowerCase()
                 .replaceAll("look|take a look|examine|view", "")
-                .replaceAll("the|a|an|at", "")
+                .replaceAll("the|an|at", "")
                 .trim();
         return cleaned.isEmpty() ? null : cleaned;
     }
@@ -550,7 +629,7 @@ public class GameController {
             view.displayInfo("The defeated " + monster.getName() + " doesn't respond.");
         }
 
-        // TODO: In Phase 7, add NPC system for friendly characters
+        // TODO: add NPC system for friendly characters
     }
 
     private void handleInventory() {

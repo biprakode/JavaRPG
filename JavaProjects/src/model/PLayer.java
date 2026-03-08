@@ -21,10 +21,11 @@ public class Player {
         this.name = n;
         //this.equippedItem = null;
         Player.maxHealth = 100;
+        health = Player.maxHealth;
         Player.maxInventory = 5;
         this.inventory = new ArrayList<>(maxInventory);
         this.experiencePoints = 0;
-        this.level = 0;
+        this.level = 1;
     }
 
     @Override
@@ -35,9 +36,7 @@ public class Player {
     public void reset(Room start) {
         health = maxHealth;
         currentRoom = start;
-        for(Item item: inventory) {
-            item = null;
-        }
+        inventory.clear();
         System.out.println("Player " + name + "reset with empty pockets!");
         experiencePoints = 0;
         level = 1;
@@ -84,21 +83,6 @@ public class Player {
         System.out.println("Ahhh || +" + h + " HP. Current: " + this.health);
     }
 
-    void addItem(Item item) {
-        if (item == null) {
-            throw new IllegalArgumentException("Cannot add a null item to inventory.");
-        }
-        verifyAlive();
-        for (int i = 0; i < inventory.size(); i++) {
-            if (inventory.get(i) == null) {
-                inventory.set(i, item);
-                System.out.println("Picked up: " + item.getName() + " (Slot " + i + ")");
-                return; // Exit method once item is added
-            }
-        }
-        throw new InventoryFullException("Pockets are full! Cannot carry " + item.getName());
-    }
-
     public void useItem(int index) {
         verifyAlive();
         Item item = getInventory(index);
@@ -107,7 +91,7 @@ public class Player {
             return;
         }
         item.use(this);
-        if(item.getItemtype() == ItemType.POTION || item.getItemtype() == ItemType.TREASURE) {
+        if(item.getItemtype() == ItemType.POTION || item.getItemtype() == ItemType.TREASURE || item.getItemtype() == ItemType.KEY) {
             setInventory(null, index);
             equippedItem = null;
             System.out.println(item.getName() + " was consumed.");

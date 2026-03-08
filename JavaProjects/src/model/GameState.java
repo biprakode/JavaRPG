@@ -45,6 +45,7 @@ public class GameState {
         this.currentRoom = start;
         this.checkpoint = start;
         this.livesAtCheckpoint = livesRemaining;
+        this.player.setCurrentRoom(start);
     }
 
     public void loseLife() {
@@ -82,7 +83,6 @@ public class GameState {
         this.player.setCurrentRoom(currentRoom);
         if(!room.isVisited()) {
             room.setVisited(true);
-            roomsExplored++;
             totalScore+=10;
         }
     }

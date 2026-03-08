@@ -34,9 +34,18 @@ public class LLMServiceImpl implements LLMService {
                         "{\"role\": \"user\", \"content\": \"%s\"}" +
                         "], \"temperature\": 0.7}",
                 model,
-                systemPrompt.replace("\"", "\\\""),
-                userPrompt.replace("\"", "\\\"")
+                escapeJson(systemPrompt),
+                escapeJson(userPrompt)
         );
+    }
+
+    private static String escapeJson(String raw) {
+        return raw
+                .replace("\\", "\\\\")   // backslashes first
+                .replace("\"", "\\\"")    // double quotes
+                .replace("\n", "\\n")     // newlines
+                .replace("\r", "\\r")     // carriage returns
+                .replace("\t", "\\t");    // tabs
     }
 
     private String sendRequest(String systemPrompt, String userPrompt) {
@@ -101,15 +110,34 @@ public class LLMServiceImpl implements LLMService {
     private String extractTextFromResponse(String responseBody) {
         try {
             int contentStart = responseBody.indexOf("\"content\":") + 10;
-            // skip to the opening quote of the content value
             int quoteStart = responseBody.indexOf("\"", contentStart);
-            int quoteEnd = responseBody.indexOf("\"", quoteStart + 1);
-            String text = responseBody.substring(quoteStart + 1, quoteEnd);
 
-            return text.replace("\\n", "\n").replace("\\\"", "\"");
+            // Walk forward, skipping escaped quotes
+            int i = quoteStart + 1;
+            while (i < responseBody.length()) {
+                char c = responseBody.charAt(i);
+                if (c == '\\') {
+                    i += 2; // skip escaped character
+                    continue;
+                }
+                if (c == '"') break;
+                i++;
+            }
+
+            String text = responseBody.substring(quoteStart + 1, i);
+            return text.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\");
         } catch (Exception e) {
             return "Look closer at the details.";
         }
+    }
+
+    @Override
+    public String generateText(String systemPrompt, String userPrompt) {
+        String responseBody = sendRequest(systemPrompt, userPrompt);
+        if (responseBody == null) {
+            return null;
+        }
+        return extractTextFromResponse(responseBody);
     }
 
     @Override
@@ -158,7 +186,7 @@ public class LLMServiceImpl implements LLMService {
     private static String getSystemPromptChallenge(ChallengeType type, ChallengeDifficulty difficulty) {
         String challengeNature = switch (type) {
             case RIDDLE -> "knowledge-based";
-            case COMBAT_CREATIVE, NEGOTIATION, MORAL_DILEMMA -> "creative";
+            case COMBAT_CREATIVE, NEGOTIATION, MORAL_DILEMMA, CREATIVE -> "creative";
             case COMBAT_STANDARD, PUZZLE -> "solvable";
         };
 

@@ -42,7 +42,7 @@ public class Room {
         if (isLocked) {
             lockedExits.add(d);
         }
-        System.out.println("Path created: " + this.name + " ---[" + d + " (Locked: " + isLocked + ")]---> " + r.getName());
+        //System.out.println("Path created: " + this.name + " ---[" + d + " (Locked: " + isLocked + ")]---> " + r.getName());
     }
     public void addExit(Directions d, Room r) {
         addExit(d, r, false);

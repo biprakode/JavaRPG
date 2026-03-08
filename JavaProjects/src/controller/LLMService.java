@@ -11,5 +11,6 @@ public interface LLMService {
     String evaluateResponse(String playerResponse, String expectedPattern, String challengeContext);
     String generateHint(String challengePrompt, String expectedAnswer, int hintLevel);
     Map<String, String> parseJsonResponse(String json);
+    String generateText(String systemPrompt, String userPrompt);
     boolean isAvailable();
 }

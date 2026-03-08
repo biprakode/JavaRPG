@@ -46,6 +46,8 @@ public class MapBuilder {
         for (int i = 0; i < rooms.size(); i++) {
             Room room = rooms.get(i);
             RoomContent content = generateRoomContent(room, i, rooms.size(), dungeonTheme);
+            System.out.println(content.title());
+            System.out.println(content.description());
             room.setName(content.title());
             room.setDesc(content.description());
         }
@@ -161,15 +163,13 @@ public class MapBuilder {
     private String[] generateItemContent(ItemType type , float itemStrength) {
         String prompt = buildItemPrompt(type , itemStrength , dungeonTheme);
         try {
-            String response = llmService.generateChallenge(
-                    ChallengeType.CREATIVE,
-                    ChallengeDifficulty.EASY,
-                    prompt
-            );
-            String name = extractJsonField(response, "name");
-            String description = extractJsonField(response, "description");
-            if (name != null && description != null) {
-                return new String[]{name, description};
+            String response = llmService.generateText(CONTENT_SYSTEM_PROMPT, prompt);
+            if (response != null) {
+                String name = extractJsonField(response, "name");
+                String description = extractJsonField(response, "description");
+                if (name != null && description != null) {
+                    return new String[]{name, description};
+                }
             }
         } catch (Exception e) {
             // fall through to fallback
@@ -210,32 +210,24 @@ public class MapBuilder {
     }
 
     private String buildItemPrompt(ItemType type, float itemStrength, String dungeonTheme) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append(String.format("Generate a %s for a text-based RPG dungeon.\n\n" , type.toString()));
-        prompt.append("Dungeon Theme: ").append(dungeonTheme).append("\n");
-        prompt.append("Item Strength (0-1): ").append(itemStrength).append("\n");
-
-        String itemType = type.toString().toLowerCase(); // e.g., "potion" or "weapon"
-
+        String itemType = type.toString().toLowerCase();
         if (itemStrength < 0.25f) {
-            prompt.append(String.format("A common, basic %s. Functional, but shows signs of wear or simple craftsmanship.\n", itemType));
+            return String.format(
+                    "A rusty, worn %s found in a %s dungeon. Barely functional. Name and describe it.",
+                    itemType, dungeonTheme);
         } else if (itemStrength < 0.5f) {
-            prompt.append(String.format("A sturdy, reliable %s. Clearly better than standard fare; a dependable tool for an adventurer.\n", itemType));
+            return String.format(
+                    "A sturdy %s crafted for adventurers in a %s dungeon. Reliable and solid. Name and describe it.",
+                    itemType, dungeonTheme);
         } else if (itemStrength < 0.75f) {
-            prompt.append(String.format("A rare and finely-honed %s. It hums with quality (or magic) and stands out as a prize.\n", itemType));
+            return String.format(
+                    "A rare, enchanted %s hidden deep in a %s dungeon. Glows with faint magic. Name and describe it.",
+                    itemType, dungeonTheme);
         } else {
-            prompt.append(String.format("A legendary, artifact-grade %s. It is an epic masterpiece of world-shaking importance.\n", itemType));
+            return String.format(
+                    "A legendary %s of immense power from a %s dungeon. Artifact-grade, world-shaking. Name and describe it.",
+                    itemType, dungeonTheme);
         }
-
-        prompt.append("""
-        \nReturn ONLY a JSON object:
-        {
-          "name": "Short name (1-3 words)",
-          "description": "Brief description of %s (1 sentence, under 100 characters)"
-        }
-        """.formatted(itemType));
-
-        return prompt.toString();
     }
 
 
@@ -281,15 +273,13 @@ public class MapBuilder {
     private String[] generateMonsterContent(monsterType type, MonsterDifficulty difficulty) {
         String prompt = buildMonsterPrompt(type, difficulty, dungeonTheme);
         try {
-            String response = llmService.generateChallenge(
-                    ChallengeType.CREATIVE,
-                    ChallengeDifficulty.EASY,
-                    prompt
-            );
-            String name = extractJsonField(response, "name");
-            String description = extractJsonField(response, "description");
-            if (name != null && description != null) {
-                return new String[]{name, description};
+            String response = llmService.generateText(CONTENT_SYSTEM_PROMPT, prompt);
+            if (response != null) {
+                String name = extractJsonField(response, "name");
+                String description = extractJsonField(response, "description");
+                if (name != null && description != null) {
+                    return new String[]{name, description};
+                }
             }
         } catch (Exception e) {
             // fall through to fallback
@@ -324,48 +314,28 @@ public class MapBuilder {
     }
 
     private String buildMonsterPrompt(monsterType type, MonsterDifficulty difficulty, String dungeonTheme) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("Generate a monster for a text-based RPG dungeon.\n\n");
-        prompt.append("Dungeon Theme: ").append(dungeonTheme).append("\n");
-        prompt.append("Monster Difficulty: ").append(difficulty).append("\n");
-        prompt.append("Monster Type: ").append(type.getType()).append("\n");
-
-        switch (difficulty) {
-            case EASY -> prompt.append("A weak early-dungeon creature. Unsettling but not terrifying.\n");
-            case MEDIUM -> prompt.append("A dangerous mid-dungeon threat. Noticeably stronger and meaner.\n");
-            case HARD -> prompt.append("A fearsome late-dungeon or boss creature. Epic and foreboding.\n");
-        }
-
-        prompt.append("""
-        \nReturn ONLY a JSON object:
-        {
-          "name": "Short name (1-3 words)",
-          "description": "Brief menacing description (1 sentence, under 100 characters)"
-        }
-        """);
-
-        return prompt.toString();
+        return switch (difficulty) {
+            case EASY -> String.format(
+                    "A weak %s creature lurking in a %s dungeon. Small and unsettling. Name and describe it.",
+                    type.getType(), dungeonTheme);
+            case MEDIUM -> String.format(
+                    "A dangerous %s warrior guarding a %s dungeon. Strong and menacing. Name and describe it.",
+                    type.getType(), dungeonTheme);
+            case HARD -> String.format(
+                    "A terrifying %s boss of a %s dungeon. Massive and dreadful. Name and describe it.",
+                    type.getType(), dungeonTheme);
+        };
     }
 
 
 
     private String generateDungeonTheme() {
-        String prompt = """
-                Generate a theme for a fantasy dungeon in a text-based RPG.
-                Return ONLY a JSON object with this format:
-                {
-                    "theme": "Ancient Crypt",
-                    "atmosphere": "dark, foreboding, undead-infested",
-                    "primaryDanger": "undead creatures"
-                }
-                """;
+        String prompt = "Generate a fantasy dungeon theme. Return ONLY: {\"theme\":\"2-3 words\",\"atmosphere\":\"3 adjectives\",\"primaryDanger\":\"2 words\"}";
         try {
-            String response = llmService.generateChallenge(ChallengeType.CREATIVE,
-                    ChallengeDifficulty.EASY,
-                    prompt);
+            String response = llmService.generateText(CONTENT_SYSTEM_PROMPT, prompt);
+            if (response == null) return chooseRandomTheme();
             String theme = extractJsonField(response, "theme");
             return theme != null ? theme : chooseRandomTheme();
-
         } catch (Exception e) {
             return chooseRandomTheme();
         }
@@ -375,57 +345,52 @@ public class MapBuilder {
         RoomType roomType = room.getRoomtype();
         String prompt = buildRoomPrompt(roomType, roomIndex, totalRooms, roomTheme);
         try {
-            String response = llmService.generateChallenge(
-                    ChallengeType.CREATIVE,
-                    ChallengeDifficulty.EASY,
-                    prompt
-            );
-            String name = extractJsonField(response, "name");
-            String description = extractJsonField(response, "description");
-            return new RoomContent(
-                    name != null ? name : "Unknown Room",
-                    description != null ? description : "An unremarkable chamber."
-            );
-        } catch (Exception e) {
-            return generateFallbackContent(roomType, roomIndex);
-        }
-    }
-
-    private String buildRoomPrompt(RoomType roomtype, int roomIndex, int totalRooms, String roomTheme) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("Generate a room for a text-based RPG dungeon.\n\n");
-        prompt.append("Dungeon Theme: ").append(roomTheme).append("\n");
-        prompt.append("Room Type: ").append(roomtype).append("\n");
-
-        switch (roomtype) {
-            case SAFE -> prompt.append("This is the starting/safe room. Make it feel secure but ominous.\n");
-            case BOSS -> prompt.append("This is the final boss room. Make it epic and foreboding.\n");
-            case NORMAL -> {
-                if (roomIndex < totalRooms / 3) {
-                    prompt.append("This is an early area. Less dangerous but still atmospheric.\n");
-                } else if (roomIndex < 2 * totalRooms / 3) {
-                    prompt.append("This is a mid-game area. Tension building.\n");
-                } else {
-                    prompt.append("This is a late-game area. Very dangerous.\n");
+            String response = llmService.generateText(CONTENT_SYSTEM_PROMPT, prompt);
+            if (response != null) {
+                String name = extractJsonField(response, "name");
+                String description = extractJsonField(response, "description");
+                if (name != null && description != null) {
+                    return new RoomContent(name, description);
                 }
             }
+        } catch (Exception e) {
+            // fall through to fallback
         }
+        return generateFallbackContent(roomType, roomIndex);
+    }
 
-        prompt.append("""
-        \nReturn ONLY a JSON object:
-        {
-          "name": "Short name (2-4 words)",
-          "description": "Atmospheric description (2-3 sentences, vivid and immersive)"
-        }
+    private static final String CONTENT_SYSTEM_PROMPT =
+            "You name locations, creatures, and items for a fantasy RPG. " +
+            "Always respond with ONLY a JSON object like: {\"name\":\"Frozen Antechamber\",\"description\":\"Ice coats the walls and your breath hangs in the still air.\"} " +
+            "No extra text. Keep description under 100 characters. Keep name 2-4 words.";
 
-        Requirements:
-        - Name should be evocative and match the theme
-        - Description should create atmosphere through sensory details
-        - Keep descriptions under 200 characters
-        - No markdown, just plain text
-        """);
+    private String buildRoomPrompt(RoomType roomtype, int roomIndex, int totalRooms, String roomTheme) {
+        // Give the model a concrete location type to anchor on
+        String[] earlyLocations = {"narrow corridor", "dusty alcove", "crumbling passage", "dim antechamber", "moss-covered tunnel"};
+        String[] midLocations = {"vaulted hall", "ritual chamber", "sunken gallery", "collapsed bridge", "echoing vault"};
+        String[] lateLocations = {"scorched sanctum", "bone-littered lair", "cursed throne hall", "abyssal pit", "sealed tomb"};
 
-        return prompt.toString();
+        return switch (roomtype) {
+            case SAFE -> String.format(
+                    "A %s dungeon entrance room. Sheltered but with a sense of dread creeping in. Name and describe it.",
+                    roomTheme);
+            case BOSS -> String.format(
+                    "The final boss chamber of a %s dungeon. Massive, terrifying, powerful. Name and describe it.",
+                    roomTheme);
+            case NORMAL -> {
+                String location;
+                if (roomIndex < totalRooms / 3) {
+                    location = earlyLocations[random.nextInt(earlyLocations.length)];
+                } else if (roomIndex < 2 * totalRooms / 3) {
+                    location = midLocations[random.nextInt(midLocations.length)];
+                } else {
+                    location = lateLocations[random.nextInt(lateLocations.length)];
+                }
+                yield String.format(
+                        "A %s in a %s dungeon. Name and describe this room.",
+                        location, roomTheme);
+            }
+        };
     }
 
     private RoomContent generateFallbackContent(RoomType type, int roomIndex) {

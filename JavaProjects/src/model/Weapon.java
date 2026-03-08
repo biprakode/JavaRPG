@@ -12,7 +12,6 @@ public class Weapon extends Item {
         this.damage = damage;
         this.cooldown = cooldown;
         lvl = WeaponLvl.LVL0;
-        System.out.println("Message");
     }
 
     @Override

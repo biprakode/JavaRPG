@@ -396,9 +396,41 @@ public class ChallengeController {
 
     // Generate reward item based on challenge type
     private Item generateRewardItem(ChallengeType type) {
-        // TODO: Implement proper item generation, possibly via LLM
-        // For now, return null - rewards can be added later
-        return null;
+        ChallengeDifficulty diff = activeChallenge != null
+                ? activeChallenge.getDifficulty()
+                : ChallengeDifficulty.EASY;
+
+        return switch (type) {
+            case RIDDLE, MORAL_DILEMMA -> {
+                int xp = switch (diff) {
+                    case EASY -> 15;
+                    case MEDIUM -> 25;
+                    case HARD -> 40;
+                    case ULTRA -> 60;
+                };
+                yield new Treasure("Ancient Relic", "A reward for your wisdom", xp);
+            }
+            case PUZZLE -> {
+                int heal = switch (diff) {
+                    case EASY -> 15;
+                    case MEDIUM -> 25;
+                    case HARD -> 40;
+                    case ULTRA -> 60;
+                };
+                yield new Potion("Mystic Elixir", "A shimmering potion earned by solving a puzzle", heal);
+            }
+            case COMBAT_STANDARD, COMBAT_CREATIVE -> {
+                int dmg = switch (diff) {
+                    case EASY -> 8;
+                    case MEDIUM -> 14;
+                    case HARD -> 22;
+                    case ULTRA -> 35;
+                };
+                yield new Weapon("Trophy Blade", "Won through combat prowess", dmg, 2);
+            }
+            case NEGOTIATION -> new Treasure("Merchant's Gift", "Earned through diplomacy", 20);
+            case CREATIVE -> new Potion("Inspiration Tonic", "Brewed from creative energy", 20);
+        };
     }
 
     public void setActiveChallenge(Challenge challenge) {

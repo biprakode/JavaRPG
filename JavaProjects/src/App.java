@@ -1,5 +1,7 @@
 import controller.ConsoleView;
 import controller.GameController;
+import controller.LLMService;
+import controller.LLMServiceImpl;
 import model.GameDifficulty;
 import view.ConsoleViewImpl;
 
@@ -11,11 +13,42 @@ public class App {
 
     public static void main(String[] args) throws Exception {
         view.displayWelcome();
+
+        LLMService llmService = new LLMServiceImpl(
+                "http://localhost:8080/v1/chat/completions",
+                "qwen2.5-1.5b-instruct",
+                60,
+                3
+        );
+
+        displayIntro(llmService);
+
         GameDifficulty difficulty = selectDifficulty();
         String playerName = enterUserName();
-        displayIntro();
-        GameController game = new GameController(difficulty);
+
+        GameController game = new GameController(difficulty, llmService);
         game.startGame(difficulty, playerName, 20);
+    }
+
+    private static void displayIntro(LLMService llmService) {
+        String intro = llmService.generateText(
+                "You are a narrator for a text-based RPG called JavaRPG. Be atmospheric and brief.",
+                "Generate a short (2-3 sentences) welcome message for a player about to start a fantasy RPG adventure. No titles, no formatting, just the narration."
+        );
+
+        System.out.println();
+        if (intro != null) {
+            System.out.println(intro);
+            System.out.println();
+        } else {
+            System.out.println("The oracle is silent today... LLM server is offline.");
+            System.out.println("Challenges will not be available. Go touch some grass, or start the server.");
+            System.out.println();
+        }
+        System.out.println("Type 'help' at any time for a list of commands.");
+        System.out.println();
+        System.out.println("═══════════════════════════════════════════════════════════");
+        System.out.println();
     }
 
     private static GameDifficulty selectDifficulty() {
@@ -65,25 +98,5 @@ public class App {
         System.out.println("Welcome, " + name + "!");
         System.out.println();
         return name;
-    }
-
-    private static void displayIntro() {
-        System.out.println("You awaken in a dark forest with no memory of how you arrived.");
-        System.out.println("The trees loom overhead, their branches creaking in the wind.");
-        System.out.println("In the distance, you hear strange sounds...");
-        System.out.println();
-        System.out.println("Your adventure begins now.");
-        System.out.println();
-        System.out.println("Type 'help' at any time for a list of commands.");
-        System.out.println();
-
-        try {
-            Thread.sleep(1500);
-        } catch (InterruptedException e) {
-            // Ignore
-        }
-
-        System.out.println("═══════════════════════════════════════════════════════════");
-        System.out.println();
     }
 }
