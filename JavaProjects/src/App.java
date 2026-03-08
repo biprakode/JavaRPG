@@ -27,7 +27,7 @@ public class App {
         String playerName = enterUserName();
 
         GameController game = new GameController(difficulty, llmService);
-        game.startGame(difficulty, playerName, 20);
+        game.startGame(difficulty, playerName, 20, scanner);
     }
 
     private static void displayIntro(LLMService llmService) {

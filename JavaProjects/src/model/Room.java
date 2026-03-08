@@ -123,9 +123,6 @@ public class Room {
 
     public void setMonster(Monster monster) {
         this.monster = monster;
-        if (monster != null) {
-            System.out.println("A " + monster.getName() + " has spawned in " + this.name);
-        }
     }
 
     public HashMap<Directions, Room> getRoomMap() {

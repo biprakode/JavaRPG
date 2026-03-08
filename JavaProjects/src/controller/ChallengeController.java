@@ -36,8 +36,8 @@ public class ChallengeController {
             view.displayError("LLM server is offline. Go touch some grass.");
             return;
         }
-        if(activeChallenge != null && activeChallenge.isChallengeCompleted()) {
-            throw new ChallengeAlreadyComplete("Cannot initiate already completed challenge");
+        if(activeChallenge != null && !activeChallenge.isChallengeCompleted()) {
+            throw new ChallengeAlreadyComplete("A challenge is already active");
         }
         if(type == null) {
             type = switch (room.getRoomtype()) {
@@ -117,8 +117,16 @@ public class ChallengeController {
     private void generateChallenge(ChallengeContext context) {
         String llmPrompt = context.buildLLMPrompt();
         String llmResponse = llmService.generateChallenge(llmPrompt);
+        if (llmResponse == null) {
+            activeChallenge = null;
+            return;
+        }
         // Parse JSON response
         Map<String, String> parsed = llmService.parseJsonResponse(llmResponse);
+        if (parsed.get("prompt") == null) {
+            activeChallenge = null;
+            return;
+        }
         activeChallenge = new Challenge(
                 context.getChallengeType(),
                 parsed.get("prompt"),
@@ -143,6 +151,7 @@ public class ChallengeController {
         activeChallenge.startEval();
         ChallengeResult result = determineEvaluationMethod(response);
         if (result.isSuccess()) {
+            activeChallenge.complete(true, result.getFeedback());
             applyConsequences(result);
             completeChallenge();
         } else {
@@ -152,6 +161,9 @@ public class ChallengeController {
                 result = new ChallengeResult(false, "No attempts remaining").withDamage(0, calculateDamage(activeChallenge, 0));
                 applyConsequences(result);
                 completeChallenge();
+            } else {
+                // Return to ACTIVE so player can try again
+                activeChallenge.setChallengeState(ChallengeState.ACTIVE);
             }
         }
     }
@@ -196,9 +208,21 @@ public class ChallengeController {
         return evaluateWithLLM(response);
     }
 
+    private boolean isCreativeType(ChallengeType type) {
+        return type == ChallengeType.CREATIVE
+                || type == ChallengeType.COMBAT_CREATIVE
+                || type == ChallengeType.MORAL_DILEMMA
+                || type == ChallengeType.NEGOTIATION;
+    }
+
     private ChallengeResult evaluateWithLLM(String response) {
         String expectedPattern = activeChallenge.getMetaData("expectedPattern");
         String challengePrompt = activeChallenge.getPrompt();
+
+        // Force creative evaluation for creative challenge types
+        if (isCreativeType(activeChallenge.getType()) && (expectedPattern == null || !expectedPattern.startsWith("CREATIVE:"))) {
+            expectedPattern = "CREATIVE: evaluate reasoning quality, creativity, and effort. Award FULL for thoughtful responses, PARTIAL for brief responses, NONE for nonsense.";
+        }
 
         String llmEval = llmService.evaluateResponse(response, expectedPattern, challengePrompt);
         if (llmEval == null) {
@@ -395,8 +419,7 @@ public class ChallengeController {
     }
 
     // Generate reward item based on challenge type
-    private Item generateRewardItem(ChallengeType type) {
-        ChallengeDifficulty diff = activeChallenge != null
+    private Item generateRewardItem(ChallengeType type) {ChallengeDifficulty diff = activeChallenge != null
                 ? activeChallenge.getDifficulty()
                 : ChallengeDifficulty.EASY;
 

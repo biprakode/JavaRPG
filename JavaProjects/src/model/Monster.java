@@ -18,9 +18,9 @@ public class Monster {
         this.desc = desc;
         this.attack = attack;
         this.maxHealth = switch(difficulty) {
-            case EASY -> 20;
-            case MEDIUM -> 60;
-            case HARD -> 150;
+            case EASY -> 40;
+            case MEDIUM -> 80;
+            case HARD -> 180;
         };
         this.health = this.maxHealth;
         this.difficulty = difficulty;

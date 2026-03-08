@@ -92,8 +92,10 @@ public class Player {
         }
         item.use(this);
         if(item.getItemtype() == ItemType.POTION || item.getItemtype() == ItemType.TREASURE || item.getItemtype() == ItemType.KEY) {
-            setInventory(null, index);
-            equippedItem = null;
+            inventory.remove(index);
+            if (item.equals(equippedItem)) {
+                equippedItem = null;
+            }
             System.out.println(item.getName() + " was consumed.");
         }
     }
@@ -134,6 +136,17 @@ public class Player {
         }else {
             inventory.add(item);
         }
+    }
+
+    public Item removeInventory(int index) {
+        if (index < 0 || index >= inventory.size()) {
+            return null;
+        }
+        Item removed = inventory.remove(index);
+        if (removed != null && removed.equals(equippedItem)) {
+            equippedItem = null;
+        }
+        return removed;
     }
 
     public static int getMaxInventory() {

@@ -47,6 +47,10 @@ public class CommandParser {
         CommandMap.put("activate", Action.USE);
         CommandMap.put("consume", Action.USE);
 
+        CommandMap.put("drop", Action.DROP);
+        CommandMap.put("discard", Action.DROP);
+        CommandMap.put("throw", Action.DROP);
+
         CommandMap.put("talk", Action.TALK);
         CommandMap.put("speak", Action.TALK);
         CommandMap.put("chat", Action.TALK);
@@ -179,7 +183,7 @@ public class CommandParser {
 
         commandsByCategory.put("Movement", Arrays.asList("go", "move", "north", "south", "east", "west"));
         commandsByCategory.put("Combat", Arrays.asList("attack", "fight"));
-        commandsByCategory.put("Interaction", Arrays.asList("examine", "take", "use", "talk"));
+        commandsByCategory.put("Interaction", Arrays.asList("examine", "take", "drop", "use", "talk"));
         commandsByCategory.put("Inventory", Arrays.asList("inventory", "stats"));
         commandsByCategory.put("System", Arrays.asList("help", "save", "load", "quit"));
         return commandsByCategory;
@@ -230,7 +234,7 @@ public class CommandParser {
 
     public boolean requiresTarget(Action type) {
         return switch (type) {
-            case MOVE, ATTACK, EXAMINE, TAKE, USE, TALK -> true;
+            case MOVE, ATTACK, EXAMINE, TAKE, DROP, USE, TALK -> true;
             case INVENTORY, HELP, QUIT, SAVE, LOAD, STATS -> false;
             default -> false;
         };
@@ -242,6 +246,7 @@ public class CommandParser {
             case ATTACK -> "Attack an enemy. Usage: 'attack goblin'";
             case EXAMINE -> "Examine something closely. Usage: 'examine door', 'look around'";
             case TAKE -> "Pick up an item. Usage: 'take sword', 'get potion'";
+            case DROP -> "Drop an item from inventory. Usage: 'drop sword', 'discard potion'";
             case USE -> "Use an item from inventory. Usage: 'use potion', 'use key'";
             case TALK -> "Talk to someone. Usage: 'talk guard', 'speak merchant'";
             case INVENTORY -> "View your inventory. Usage: 'inventory' or 'inv'";
@@ -264,6 +269,7 @@ public class CommandParser {
                 Combat:    attack/fight/hit/strike <target>
 
                 Items:     take/get/grab <item>
+                           drop/discard <item>
                            use/activate/consume <item>
                            examine/look/inspect/check [target]
 
