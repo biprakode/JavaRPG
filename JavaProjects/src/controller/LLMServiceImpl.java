@@ -85,23 +85,21 @@ public class LLMServiceImpl implements LLMService {
 
     private String extractJsonFromResponse(String responseBody) {
         try {
-            int contentStart = responseBody.indexOf("\"content\":") + 10;
-            // skip whitespace and opening quote
-            int quoteStart = responseBody.indexOf("\"", contentStart);
-            String contentValue = responseBody.substring(quoteStart + 1);
+            // First extract the full content string properly (handling escaped quotes)
+            String content = extractTextFromResponse(responseBody);
+            if (content == null) {
+                return "{\"error\": \"No content in LLM response\"}";
+            }
 
-            // Unescape the content first
-            String unescaped = contentValue.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\");
-
-            // Find the JSON object within the unescaped content
-            int firstBrace = unescaped.indexOf("{");
-            int lastBrace = unescaped.lastIndexOf("}");
+            // Find the JSON object within the content
+            int firstBrace = content.indexOf("{");
+            int lastBrace = content.lastIndexOf("}");
 
             if (firstBrace == -1 || lastBrace == -1) {
                 return "{\"error\": \"No JSON object found in LLM response\"}";
             }
 
-            return unescaped.substring(firstBrace, lastBrace + 1);
+            return content.substring(firstBrace, lastBrace + 1);
         } catch (Exception e) {
             return "{\"error\": \"Failed to parse LLM output\"}";
         }

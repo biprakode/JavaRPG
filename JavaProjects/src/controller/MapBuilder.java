@@ -42,12 +42,13 @@ public class MapBuilder {
 
     private void populateRoomContent(List<Room> rooms) {
         this.dungeonTheme = generateDungeonTheme();
+        System.out.println("\n══════════════════════════════════════════════════════════");
+        System.out.println("              Generating World...");
+        System.out.println("══════════════════════════════════════════════════════════\n");
 
         for (int i = 0; i < rooms.size(); i++) {
             Room room = rooms.get(i);
             RoomContent content = generateRoomContent(room, i, rooms.size(), dungeonTheme);
-            System.out.println(content.title());
-            System.out.println(content.description());
             room.setName(content.title());
             room.setDesc(content.description());
         }
@@ -246,16 +247,16 @@ public class MapBuilder {
             int attack;
             if (room.getRoomtype() == RoomType.BOSS) {
                 difficulty = MonsterDifficulty.HARD;
-                attack = 30;
+                attack = 35;
             } else if (i < rooms.size() / 3) {
                 difficulty = MonsterDifficulty.EASY;
-                attack = 8;
+                attack = 12;
             } else if (i < 2 * rooms.size() / 3) {
                 difficulty = MonsterDifficulty.MEDIUM;
-                attack = 15;
+                attack = 20;
             } else {
                 difficulty = MonsterDifficulty.HARD;
-                attack = 22;
+                attack = 28;
             }
 
             // NORMAL rooms: 65% chance; BOSS rooms: always

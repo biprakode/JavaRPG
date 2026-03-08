@@ -19,6 +19,7 @@ public class GameController {
     private ChallengeController challengeController;
     private ChallengeEvaluatorImpl evaluator;
     private Challenge activeChallenge;
+    private java.util.Set<Integer> challengedMonsterRooms = new java.util.HashSet<>();
 
     public GameController(GameDifficulty difficulty) {
         this(difficulty, new LLMServiceImpl(
@@ -39,6 +40,10 @@ public class GameController {
     }
 
     public void startGame(GameDifficulty difficulty, String player_name, int totalrooms) throws Exception {
+        startGame(difficulty, player_name, totalrooms, new Scanner(System.in));
+    }
+
+    public void startGame(GameDifficulty difficulty, String player_name, int totalrooms, Scanner scanner) throws Exception {
         this.gameState = new GameState(difficulty);
         this.player = new Player(player_name);
         this.mapbuilder = new MapBuilder(this.llmService);
@@ -48,22 +53,27 @@ public class GameController {
         Map<Integer, Room> worldMap = this.mapbuilder.getWorldMap();
         this.gameState.initialize(this.player, spawnRoom, worldMap);
 
-        gameLoop(this.gameState);
+        gameLoop(this.gameState, scanner);
     }
 
-    public void gameLoop(GameState gamestate) throws Exception {
-        Scanner scanner = new Scanner(System.in);
+    public void gameLoop(GameState gamestate, Scanner scanner) throws Exception {
         view.displayBanner("THE ADVENTURE BEGINS");
         view.displayRoom(gamestate.getCurrentRoom());
 
         while(!gamestate.isGameOver()) {
             view.displayMessage("\nWhat will you do? > ");
-            String input = scanner.nextLine();
+            String input = scanner.nextLine().trim();
+
+            if (input.isEmpty()) continue;
 
             if (input.equalsIgnoreCase("quit")) {
                 break;
             }
-            processCommand(input);
+            try {
+                processCommand(input);
+            } catch (Exception e) {
+                // RIPException, PlayerAlreadyDeadException, etc.
+            }
             if(!gamestate.getPlayer().isAlive() && !gamestate.hasLivesRemaining()) {
                 view.displayGameOver(gamestate, false);
                 gamestate.setGameOver(true);
@@ -103,6 +113,7 @@ public class GameController {
             case MOVE -> handleMove(input);
             case ATTACK -> handleAttack(input);
             case TAKE -> handleTake(input);
+            case DROP -> handleDrop(input);
             case USE -> handleUse(input);
             case EXAMINE -> handleExamine(input);
             case TALK -> handleTalk(input);
@@ -186,8 +197,10 @@ public class GameController {
             return;
         }
 
-        if (currentRoom.getRoomtype() == RoomType.BOSS && !monster.isDefeated() && activeChallenge == null) {
-            triggerBossCombatChallenge(monster , this.gameState.getCurrentRoom());
+        // First encounter with any monster triggers a challenge
+        if (activeChallenge == null && !monster.isDefeated() && !challengedMonsterRooms.contains(currentRoom.getId())) {
+            challengedMonsterRooms.add(currentRoom.getId());
+            triggerBossCombatChallenge(monster, currentRoom);
             return;
         }
 
@@ -203,12 +216,15 @@ public class GameController {
         }
 
         int monsterDamage = monster.attack();
-        player.takeDamage(monsterDamage);
+        try {
+            player.takeDamage(monsterDamage);
+        } catch (Exception e) {
+            // RIPException — player died from monster attack
+        }
 
         view.displayCombatAction(monster.getName(), "strikes back at", monsterDamage, "you");
         view.displayPlayerHealth(player);
 
-        // Check if player died
         if (!player.isAlive()) {
             handlePlayerDeath();
         }
@@ -229,15 +245,13 @@ public class GameController {
     }
 
     private int calculatePlayerDamage() {
-        int baseDamage = 10;
-        for (Item item : player.getInventory()) {
-            if(item instanceof Weapon weapon) {
-                baseDamage += weapon.getDamage();
-                break;
-            }
+        int baseDamage = 5;
+        // Only equipped weapon adds damage
+        if (player.getEquippedItem() instanceof Weapon weapon) {
+            baseDamage += weapon.getDamage();
         }
         int variance = (int)(baseDamage * 0.3);
-        return baseDamage + (int)(Math.random() * variance * 2 - variance); // 30% randomness
+        return Math.max(1, baseDamage + (int)(Math.random() * variance * 2 - variance));
     }
 
     private void handleMonsterDefeated(Monster monster) {
@@ -395,6 +409,7 @@ public class GameController {
 
         if (firstVisit) {
             gameState.incrementRoomsExplored();
+            gameState.setTotalScore(gameState.getTotalScore() + 10);
             room.setVisited(true);
             player.addXP(10);
         }
@@ -404,7 +419,7 @@ public class GameController {
         if (firstVisit) {
             view.displaySuccess("+10 XP for exploring new area");
         }
-        if(firstVisit && Math.random() < 0.2) {
+        if (firstVisit && Math.random() < 0.4) {
             triggerExplorationChallenge(room);
         }
     }
@@ -521,10 +536,29 @@ public class GameController {
 
     private String extractItemName(String input) {
         String cleaned = input.toLowerCase()
-                .replaceAll("take|get|pick up|grab|pick", "")
-                .replaceAll("the|an", "")
+                .replaceAll("\\b(take|get|pick up|grab|pick)\\b", "")
+                .replaceAll("\\b(the|an|a)\\b", "")
                 .trim();
         return cleaned.isEmpty() ? null : cleaned;
+    }
+
+    private void handleDrop(String input) {
+        String targetName = extractItemName(input.replace("drop", "").replace("discard", "").replace("throw", ""));
+        if (targetName == null) {
+            view.displayWarning("Drop what? Check your inventory with 'inventory'");
+            return;
+        }
+        ItemIndex itemindex = findItemInInventory(targetName);
+        if (itemindex == null) {
+            view.displayWarning("You don't have '" + targetName + "'.");
+            return;
+        }
+
+        Item item = player.removeInventory(itemindex.index());
+        if (item != null) {
+            gameState.getCurrentRoom().addItem(item);
+            view.displayItemDrop(item);
+        }
     }
 
     private Item findItemInRoom(Room room, String targetName) {
@@ -549,19 +583,31 @@ public class GameController {
             return;
         }
 
-        try {
-            player.useItem(itemindex.index());
-            view.displayItemUse(itemindex.item(), "Used successfully");
-        } catch (Exception e) {
-            view.displayError("Cannot use " + itemindex.item().getName() + ": " + e.getMessage());
+        Item item = itemindex.item();
+
+        // Key: check for locked exits before consuming
+        if (item instanceof Key) {
+            Room currentRoom = gameState.getCurrentRoom();
+            if (currentRoom.getLockedExits() == null || currentRoom.getLockedExits().isEmpty()) {
+                view.displayWarning("There are no locked exits here to use " + item.getName() + " on.");
+                return;
+            }
         }
 
+        try {
+            player.useItem(itemindex.index());
+            view.displayItemUse(item, "Used successfully");
+        } catch (Exception e) {
+            view.displayError("Cannot use " + item.getName() + ": " + e.getMessage());
+        }
     }
 
     private ItemIndex findItemInInventory(String target) {
-        for (int i=0 ; i<player.getInventory().size() ; i++) {
-            if(player.getInventory(i).getName().toLowerCase().contains(target) || target.contains(player.getInventory(i).getName().toLowerCase())) {
-                return new ItemIndex(player.getInventory(i) , i);
+        for (int i = 0; i < player.getInventory().size(); i++) {
+            Item item = player.getInventory(i);
+            if (item == null) continue;
+            if (item.getName().toLowerCase().contains(target) || target.contains(item.getName().toLowerCase())) {
+                return new ItemIndex(item, i);
             }
         }
         return null;
@@ -604,8 +650,8 @@ public class GameController {
 
     private String extractItemNameExamine(String input) {
         String cleaned = input.toLowerCase()
-                .replaceAll("look|take a look|examine|view", "")
-                .replaceAll("the|an|at", "")
+                .replaceAll("\\b(take a look|look|examine|view)\\b", "")
+                .replaceAll("\\b(the|an|a|at)\\b", "")
                 .trim();
         return cleaned.isEmpty() ? null : cleaned;
     }

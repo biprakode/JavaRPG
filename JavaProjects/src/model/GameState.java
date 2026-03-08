@@ -81,10 +81,6 @@ public class GameState {
     public void moveToRoom(Room room) {
         this.currentRoom = room;
         this.player.setCurrentRoom(currentRoom);
-        if(!room.isVisited()) {
-            room.setVisited(true);
-            totalScore+=10;
-        }
     }
 
     public Room getRoomById(int id) {

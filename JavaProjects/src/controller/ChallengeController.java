@@ -117,8 +117,16 @@ public class ChallengeController {
     private void generateChallenge(ChallengeContext context) {
         String llmPrompt = context.buildLLMPrompt();
         String llmResponse = llmService.generateChallenge(llmPrompt);
+        if (llmResponse == null) {
+            activeChallenge = null;
+            return;
+        }
         // Parse JSON response
         Map<String, String> parsed = llmService.parseJsonResponse(llmResponse);
+        if (parsed.get("prompt") == null) {
+            activeChallenge = null;
+            return;
+        }
         activeChallenge = new Challenge(
                 context.getChallengeType(),
                 parsed.get("prompt"),
@@ -395,8 +403,7 @@ public class ChallengeController {
     }
 
     // Generate reward item based on challenge type
-    private Item generateRewardItem(ChallengeType type) {
-        ChallengeDifficulty diff = activeChallenge != null
+    private Item generateRewardItem(ChallengeType type) {ChallengeDifficulty diff = activeChallenge != null
                 ? activeChallenge.getDifficulty()
                 : ChallengeDifficulty.EASY;
 
