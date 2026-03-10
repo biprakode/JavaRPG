@@ -71,7 +71,9 @@ public class ConsoleViewImpl implements ConsoleView {
             int attemptsRemaining = challenge.getAttemptsRemaining();
 
             sb.append("INCORRECT\n");
-            sb.append("You take ").append(damageTaken).append(" damage from the ").append(type).append("!\n");
+            if (damageTaken > 0) {
+                sb.append("You take ").append(damageTaken).append(" damage!\n");
+            }
             sb.append(message).append("\n");
             sb.append(attemptsRemaining).append(" attempts remaining.");
         }

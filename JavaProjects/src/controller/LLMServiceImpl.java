@@ -152,9 +152,9 @@ public class LLMServiceImpl implements LLMService {
 
     @Override
     public String generateChallenge(String challengePrompt) {
-        String systemPrompt = "You are a creative game master generating challenges for a text-based RPG. " +
-                "Return ONLY valid JSON with fields: prompt, correctAnswer, hint1, hint2, hint3, " +
-                "expectedAnswerPattern, desc, alternateAnswers.";
+        String systemPrompt = "You generate challenges for a fantasy RPG. " +
+                "Return ONLY a JSON object with these fields: prompt, desc, hint1, hint2, hint3, expectedAnswerPattern. " +
+                "No extra text before or after the JSON.";
 
         String responseBody = sendRequest(systemPrompt, challengePrompt);
         if (responseBody == null) {
@@ -197,15 +197,36 @@ public class LLMServiceImpl implements LLMService {
 
     @Override
     public String evaluateResponse(String playerResponse, String expectedPattern, String challengeContext) {
-        String systemPrompt = "You are an RPG Game Master. Evaluate if the player's response matches " +
-                "the correct answer semantically. " +
-                "Return ONLY JSON with fields: isCorrect (bool), confidence (float), " +
-                "reasoning (string), effectiveness (FULL/PARTIAL/NONE).";
+        boolean isCreative = expectedPattern != null && expectedPattern.startsWith("CREATIVE:");
 
-        String userPrompt = String.format(
-                "Challenge: %s\nExpected Answer: %s\nPlayer's Response: %s\n",
-                challengeContext, expectedPattern, playerResponse
-        );
+        String systemPrompt;
+        String userPrompt;
+
+        if (isCreative) {
+            systemPrompt = "You are an RPG Game Master evaluating a player's creative response. " +
+                    "Judge the response based on effort, creativity, and reasoning quality. " +
+                    "A thoughtful response of at least one sentence = FULL. " +
+                    "A short but relevant response = PARTIAL. " +
+                    "Nonsense, empty, or completely irrelevant = NONE. " +
+                    "Return ONLY JSON: {\"isCorrect\": true/false, \"confidence\": 0.0-1.0, " +
+                    "\"reasoning\": \"why\", \"effectiveness\": \"FULL/PARTIAL/NONE\"}";
+
+            userPrompt = String.format(
+                    "Challenge prompt: %s\nEvaluation criteria: %s\nPlayer wrote: %s\n" +
+                    "Judge the quality of their response.",
+                    challengeContext, expectedPattern, playerResponse
+            );
+        } else {
+            systemPrompt = "You are an RPG Game Master. Evaluate if the player's response matches " +
+                    "the correct answer semantically. " +
+                    "Return ONLY JSON: {\"isCorrect\": true/false, \"confidence\": 0.0-1.0, " +
+                    "\"reasoning\": \"why\", \"effectiveness\": \"FULL/PARTIAL/NONE\"}";
+
+            userPrompt = String.format(
+                    "Challenge: %s\nExpected Answer: %s\nPlayer's Response: %s\n",
+                    challengeContext, expectedPattern, playerResponse
+            );
+        }
 
         String responseBody = sendRequest(systemPrompt, userPrompt);
         if (responseBody == null) {

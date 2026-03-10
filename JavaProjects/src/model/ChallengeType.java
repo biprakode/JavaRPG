@@ -29,18 +29,17 @@ public enum ChallengeType {
     }
     public int getBaseTimeout() {
         return switch (this) {
-            case RIDDLE,PUZZLE,MORAL_DILEMMA -> 120;
-            case COMBAT_CREATIVE -> 60;
-            case COMBAT_STANDARD -> 10;
-            case NEGOTIATION -> 90;
-            case CREATIVE -> -1;
+            case RIDDLE,PUZZLE,MORAL_DILEMMA -> 600;
+            case COMBAT_CREATIVE, NEGOTIATION -> 450;
+            case COMBAT_STANDARD -> 300;
+            case CREATIVE -> 1200;
         };
     }
     public int getMaxAttempts() {
         return switch (this) {
-            case RIDDLE,PUZZLE,MORAL_DILEMMA -> 3;
-            case COMBAT_CREATIVE , COMBAT_STANDARD,NEGOTIATION -> 2;
-            case CREATIVE -> -1;
+            case RIDDLE,PUZZLE,MORAL_DILEMMA -> 5;
+            case COMBAT_CREATIVE , COMBAT_STANDARD,NEGOTIATION -> 6;
+            case CREATIVE -> 7;
         };
     }
 

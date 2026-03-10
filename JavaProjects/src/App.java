@@ -15,8 +15,8 @@ public class App {
         view.displayWelcome();
 
         LLMService llmService = new LLMServiceImpl(
-                "http://localhost:8080/v1/chat/completions",
-                "qwen2.5-1.5b-instruct",
+                    "http://localhost:8080/v1/chat/completions",
+                args.length > 0 ? args[0] : "qwen2.5-1.5b-instruct",
                 60,
                 3
         );

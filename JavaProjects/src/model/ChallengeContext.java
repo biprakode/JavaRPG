@@ -70,48 +70,60 @@ public class ChallengeContext {
 
     public String buildLLMPrompt() {
         StringBuilder prompt = new StringBuilder();
-        // 1. Task Setting
-        prompt.append("Generate a ").append(challengeType).append(" challenge for the following RPG context:\n\n");
 
-        // 2. Environment Context
-        prompt.append("--- ENVIRONMENT ---\n");
-        prompt.append("Location: ").append(roomName).append("\n");
-        prompt.append("Description: ").append(roomDescription).append("\n\n");
+        // Type-specific task description
+        String typeInstruction = getTypeInstruction();
+        prompt.append(typeInstruction).append("\n\n");
 
-        // 3. Player Context
-        prompt.append("--- PLAYER ---\n");
-        prompt.append("Level: ").append(playerLevel).append("\n");
-        prompt.append("Condition: ").append(playerHealth).append("/").append(maxPlayerHealth).append(" HP\n");
-        prompt.append("Inventory: ").append(playerInventory.isEmpty() ? "Empty" : playerInventory).append("\n\n");
-
-        // 4. Enemy Context (Optional)
+        // Context
+        prompt.append("Location: ").append(roomName).append(" - ").append(roomDescription).append("\n");
         if (monsterName != null) {
-            prompt.append("--- THREAT ---\n");
-            prompt.append("Monster: ").append(monsterName).append(" (").append(monsterDifficulty).append(")\n");
-            prompt.append("Details: ").append(monsterDescription).append("\n\n");
+            prompt.append("Monster: ").append(monsterName).append(" (").append(monsterDifficulty).append(") - ").append(monsterDescription).append("\n");
         }
+        prompt.append("Player Level: ").append(playerLevel).append(", HP: ").append(playerHealth).append("/").append(maxPlayerHealth).append("\n");
+        prompt.append("Difficulty: ").append(challengeDifficulty).append("\n\n");
 
-        // 5. Challenge Constraints
-        prompt.append("--- CHALLENGE REQUIREMENTS ---\n");
-        prompt.append("Difficulty: ").append(challengeDifficulty).append("\n");
-        if (recentChallengeTypes != null && !recentChallengeTypes.isEmpty()) {
-            prompt.append("Avoid these recent themes: ").append(recentChallengeTypes).append("\n");
-        }
-        prompt.append("Style: Immersive, dark fantasy, and high-stakes.\n\n");
-
-        // 6. JSON Schema (The "Contract")
-        prompt.append("--- OUTPUT FORMAT ---\n");
-        prompt.append("Return ONLY a valid JSON object with the following structure:\n");
-        prompt.append("{\n");
-        prompt.append("  \"prompt\": \"The flavor text and the actual riddle/puzzle description\",\n");
-        prompt.append("  \"desc\": \"A brief summary of what the player sees\",\n");
-        prompt.append("  \"hint1\": \"A subtle hint\",\n");
-        prompt.append("  \"hint2\": \"A direct hint\",\n");
-        prompt.append("  \"hint3\": \"An obvious hint (last resort)\",\n");
-        prompt.append("  \"expectedAnswerPattern\": \"A regex or list of keywords to solve this\"\n");
-        prompt.append("}");
+        // JSON format with type-specific example
+        prompt.append("Return ONLY a JSON object like this example:\n");
+        prompt.append(getTypeExample());
 
         return prompt.toString();
+    }
+
+    private String getTypeInstruction() {
+        return switch (challengeType) {
+            case RIDDLE -> "Create a riddle for the player to solve. The player must guess the answer in one or two words.";
+            case PUZZLE -> "Create a logic puzzle or word puzzle. The player must figure out the answer.";
+            case MORAL_DILEMMA -> "Create a moral dilemma scenario. The player must write a sentence explaining what they would do and why. There is no single correct answer — evaluate based on reasoning quality.";
+            case NEGOTIATION -> "Create a negotiation scenario with an NPC. The player must write a persuasive argument. Evaluate based on how convincing their argument is, not an exact answer.";
+            case CREATIVE -> "Create a creative writing prompt. The player must write a short creative response (1-3 sentences). Evaluate based on creativity and effort, not correctness.";
+            case COMBAT_CREATIVE -> "Create a combat scenario where the player must describe a creative battle strategy in 1-3 sentences. Evaluate based on tactical creativity, not an exact answer.";
+            case COMBAT_STANDARD -> "Create a quick combat challenge. The player must answer a tactical question about fighting the monster.";
+        };
+    }
+
+    private String getTypeExample() {
+        boolean isCreativeType = challengeType == ChallengeType.CREATIVE
+                || challengeType == ChallengeType.COMBAT_CREATIVE
+                || challengeType == ChallengeType.MORAL_DILEMMA
+                || challengeType == ChallengeType.NEGOTIATION;
+
+        if (isCreativeType) {
+            return "{\"prompt\": \"YOUR CREATIVE SCENARIO HERE\", "
+                    + "\"desc\": \"short summary\", "
+                    + "\"hint1\": \"subtle hint\", "
+                    + "\"hint2\": \"direct hint\", "
+                    + "\"hint3\": \"obvious hint\", "
+                    + "\"expectedAnswerPattern\": \"CREATIVE: evaluate reasoning quality, persuasiveness, and effort. Award FULL for thoughtful responses, PARTIAL for brief responses, NONE for nonsense.\"}\n"
+                    + "IMPORTANT: Do NOT copy the example. Create an original scenario based on the location and context above.";
+        }
+        return "{\"prompt\": \"YOUR RIDDLE OR PUZZLE HERE\", "
+                + "\"desc\": \"short summary\", "
+                + "\"hint1\": \"subtle hint\", "
+                + "\"hint2\": \"direct hint\", "
+                + "\"hint3\": \"obvious hint\", "
+                + "\"expectedAnswerPattern\": \"the answer\"}\n"
+                + "IMPORTANT: Do NOT copy the example. Create an original challenge based on the location and context above.";
     }
 
     public ChallengeType getChallengeType() {
