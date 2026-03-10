@@ -23,7 +23,7 @@ cd JavaRPG/JavaProjects
    cd llama.cpp && cmake -B build && cmake --build build --config Release
    ```
 
-2. **Download a model** — any small instruction-tuned GGUF works. Recommended:
+2. **Download a model** — any small instruction-tuned GGUF works, Recommended:
    ```bash
    # Qwen 2.5 1.5B (small, fast, good enough for riddles)
    huggingface-cli download Qwen/Qwen2.5-1.5B-Instruct-GGUF \
